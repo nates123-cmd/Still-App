@@ -484,14 +484,29 @@
     .mood-btn:active { transform: scale(0.95); }
     .mood-btn.selected { background: var(--text); color: var(--bg); border-color: var(--text); }
 
-    .tags-row { display: flex; gap: 10px; align-items: center; }
-    #reflect-tags {
-      flex: 1; border: 1.5px solid var(--border); border-radius: 8px;
-      padding: 7px 12px; font-size: 0.85rem; color: var(--text);
-      background: var(--bg); outline: none; font-family: var(--font);
+    .oura-select { display: flex; flex-direction: column; gap: 8px; }
+    .oura-chips  { display: flex; gap: 8px; flex-wrap: wrap; }
+    .oura-chip {
+      padding: 6px 14px; border-radius: 20px; font-size: 0.82rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      color: var(--text); cursor: pointer; transition: transform 0.1s, background 0.15s;
+      font-family: var(--font);
     }
-    #reflect-tags:focus { border-color: var(--accent); }
-    #reflect-tags::placeholder { color: var(--muted); }
+    .oura-chip:active { transform: scale(0.96); }
+    .oura-chip.selected { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+    .reflect-prompt-banner {
+      background: var(--card-bg); border-left: 3px solid var(--accent);
+      padding: 10px 14px; border-radius: 8px;
+      font-size: 0.88rem; color: var(--text); line-height: 1.5; font-style: italic;
+    }
+    .prompt-screen-help { font-size: 0.95rem; color: var(--muted); line-height: 1.55; }
+    .prompt-display {
+      background: var(--card-bg); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+      font-size: 1rem; line-height: 1.6; color: var(--text); font-style: italic;
+      min-height: 80px;
+    }
 
     .reflect-bottom-row { display: flex; gap: 10px; align-items: center; }
     .btn-flag-insight {
@@ -756,14 +771,14 @@
       <span class="activity-title">Reflect</span>
     </div>
 
-    <div class="reflect-prompt-zone">
-      <div class="prompt-label">Prompt</div>
-      <div class="prompt-text" id="reflect-prompt-text">Write freely below, or get a prompt to start.</div>
-      <div class="prompt-flavor-row">
-        <button class="prompt-flavor-btn" data-flavor="general">General</button>
-        <button class="prompt-flavor-btn" data-flavor="gratitude">Gratitude</button>
-        <button class="prompt-flavor-btn" data-flavor="challenge">Challenge</button>
-        <button class="prompt-flavor-btn" data-flavor="stoic">Stoic</button>
+    <div class="reflect-prompt-banner hidden" id="reflect-prompt-banner"></div>
+
+    <div class="oura-select">
+      <div class="row-label">Pull biometrics</div>
+      <div class="oura-chips" id="oura-chips">
+        <button class="oura-chip" data-metric="sleep">Sleep</button>
+        <button class="oura-chip" data-metric="readiness">Readiness</button>
+        <button class="oura-chip" data-metric="activity">Activity</button>
       </div>
     </div>
 
@@ -782,15 +797,27 @@
       </div>
     </div>
 
-    <div class="tags-row">
-      <span class="row-label">Tags</span>
-      <input id="reflect-tags" type="text" placeholder="focus, sleep, work (comma-separated)" />
-    </div>
-
     <div class="reflect-bottom-row">
       <button class="btn-flag-insight" id="btn-flag-insight">+ Flag Insight</button>
       <button class="btn btn-primary" id="btn-save-reflection" style="flex:1">Save Entry</button>
     </div>
+  </div>
+
+  <!-- ── Prompt (long-press → Prompt) ────────── -->
+  <div id="screen-prompt" class="screen">
+    <div class="activity-header">
+      <button class="btn-back" data-back>←</button>
+      <span class="activity-title">Prompt</span>
+    </div>
+    <p class="prompt-screen-help">Get a Claude-generated prompt to seed a reflection.</p>
+    <div class="prompt-flavor-row">
+      <button class="prompt-flavor-btn" data-flavor="general">General</button>
+      <button class="prompt-flavor-btn" data-flavor="gratitude">Gratitude</button>
+      <button class="prompt-flavor-btn" data-flavor="challenge">Challenge</button>
+      <button class="prompt-flavor-btn" data-flavor="stoic">Stoic</button>
+    </div>
+    <div class="prompt-display" id="prompt-screen-text">Tap a flavor above to generate.</div>
+    <button class="btn btn-primary hidden" id="btn-prompt-reflect">Reflect with this prompt</button>
   </div>
 
   <!-- ── Stoic ───────────────────────────────── -->
@@ -1096,7 +1123,8 @@
     function onEnter(id) {
       if (id === 'home')          renderCanvasDate();
       if (id === 'habits')        { loadHabitsHome(); loadActiveChallengeHome(); loadResurface(); loadCheckin(); }
-      if (id === 'reflect')       checkOuraTrigger();
+      if (id === 'reflect')       renderReflectPromptBanner();
+      if (id === 'prompt')        resetPromptScreen();
       if (id === 'insights')      loadInsights();
       if (id === 'challenges')    loadChallenges();
       if (id === 'captures')      loadCaptures();
@@ -1258,12 +1286,13 @@
 
     function showMoreSheet() {
       const items = [
+        { nav: 'prompt',        label: 'Prompt',       sub: 'Get a Claude-generated reflection prompt' },
         { nav: 'log',           label: 'Journal',      sub: 'All your reflections and stoic entries' },
         { nav: 'challenges',    label: 'Challenges',   sub: 'Science-based behavioral experiments' },
         { nav: 'pattern',       label: 'Pattern View', sub: 'What Claude notices across your entries' },
         { nav: 'captures',      label: 'Captures',     sub: 'Review your dropped thoughts' },
         { nav: 'habits-manage', label: 'Habits',       sub: 'Add or remove daily habits' },
-        { action: 'settings',   label: 'Settings',     sub: 'API key' },
+        { action: 'settings',   label: 'Settings',     sub: 'API keys' },
       ];
       showModal(
         items.map(i =>
@@ -1522,10 +1551,10 @@
       challengeToggling = false;
     });
 
-    // ── Oura biometric context (auto-pulled on relevant tags) ──────────────────
-    const OURA_TRIGGER_TAGS = ['sleep','energy','focus','mood','tired','rest','recovery','workout','exercise','anxious','calm'];
+    // ── Oura biometric context (selected per-reflection via chips) ─────────────
     let ouraCache = null;          // { date, data } for the current day
     let ouraLoadingPromise = null;
+    let ouraSelected = new Set();  // which metrics the user has toggled on
 
     const OURA_PROXY_PATH = '/functions/v1/smooth-processor';
     async function ouraFetch(path) {
@@ -1576,37 +1605,44 @@
       return h + 'h ' + String(m).padStart(2, '0') + 'm';
     }
 
-    function renderOuraCard(data) {
-      const card = document.getElementById('oura-card');
-      const s = pick(data.sleep);
-      const r = pick(data.readiness);
-      const a = pick(data.activity);
-      const sleepScore = s?.score ?? '—';
-      const sleepHrs   = fmtSleepDuration(s?.total_sleep_duration) || (s?.contributors?.total_sleep != null ? s.contributors.total_sleep + '/100' : '');
-      const readiness  = r?.score ?? '—';
-      const hrvHint    = r?.contributors?.hrv_balance != null ? 'HRV ' + r.contributors.hrv_balance : '';
-      const steps      = a?.steps != null ? a.steps.toLocaleString() : '—';
-      const actMin     = a?.total_calories != null ? Math.round(a.total_calories) + ' cal' : '';
-      const dim = v => (v === '—' ? ' dim' : '');
-      card.innerHTML =
-        '<div class="oura-card-header"><span>Last night · today</span><span>Oura</span></div>' +
-        '<div class="oura-grid">' +
-          '<div class="oura-stat"><div class="oura-stat-label">Sleep</div>' +
-            '<div class="oura-stat-value' + dim(sleepScore) + '">' + sleepScore + '</div>' +
-            (sleepHrs ? '<div class="oura-stat-sub">' + sleepHrs + '</div>' : '') +
-          '</div>' +
-          '<div class="oura-stat"><div class="oura-stat-label">Readiness</div>' +
-            '<div class="oura-stat-value' + dim(readiness) + '">' + readiness + '</div>' +
-            (hrvHint ? '<div class="oura-stat-sub">' + hrvHint + '</div>' : '') +
-          '</div>' +
-          '<div class="oura-stat"><div class="oura-stat-label">Activity</div>' +
-            '<div class="oura-stat-value' + dim(steps) + '">' + steps + '</div>' +
-            (actMin ? '<div class="oura-stat-sub">' + actMin + '</div>' : '') +
-          '</div>' +
-        '</div>';
+    function ouraStatBlock(label, value, sub) {
+      const dim = value === '—' ? ' dim' : '';
+      return '<div class="oura-stat"><div class="oura-stat-label">' + label + '</div>' +
+        '<div class="oura-stat-value' + dim + '">' + value + '</div>' +
+        (sub ? '<div class="oura-stat-sub">' + sub + '</div>' : '') +
+      '</div>';
     }
 
-    async function showOuraCard() {
+    function renderOuraCard(data) {
+      const card = document.getElementById('oura-card');
+      if (!ouraSelected.size) { card.classList.add('hidden'); return; }
+      const blocks = [];
+      if (ouraSelected.has('sleep')) {
+        const s = pick(data.sleep);
+        const score = s?.score ?? '—';
+        const sub = fmtSleepDuration(s?.total_sleep_duration)
+          || (s?.contributors?.total_sleep != null ? s.contributors.total_sleep + '/100' : '');
+        blocks.push(ouraStatBlock('Sleep', score, sub));
+      }
+      if (ouraSelected.has('readiness')) {
+        const r = pick(data.readiness);
+        const score = r?.score ?? '—';
+        const sub = r?.contributors?.hrv_balance != null ? 'HRV ' + r.contributors.hrv_balance : '';
+        blocks.push(ouraStatBlock('Readiness', score, sub));
+      }
+      if (ouraSelected.has('activity')) {
+        const a = pick(data.activity);
+        const score = a?.steps != null ? a.steps.toLocaleString() : '—';
+        const sub = a?.total_calories != null ? Math.round(a.total_calories) + ' cal' : '';
+        blocks.push(ouraStatBlock('Activity', score, sub));
+      }
+      card.classList.remove('hidden');
+      card.innerHTML =
+        '<div class="oura-card-header"><span>Last night · today</span><span>Oura</span></div>' +
+        '<div class="oura-grid">' + blocks.join('') + '</div>';
+    }
+
+    async function ensureOuraData() {
       const card = document.getElementById('oura-card');
       card.classList.remove('hidden');
       if (ouraCache && ouraCache.date === today()) { renderOuraCard(ouraCache.data); return; }
@@ -1627,14 +1663,26 @@
       document.getElementById('oura-card').classList.add('hidden');
     }
 
-    function checkOuraTrigger() {
-      const raw = document.getElementById('reflect-tags').value.toLowerCase();
-      const tags = raw.split(',').map(t => t.trim()).filter(Boolean);
-      const hit = tags.some(t => OURA_TRIGGER_TAGS.includes(t));
-      if (hit) showOuraCard(); else hideOuraCard();
+    function resetOuraSelection() {
+      ouraSelected = new Set();
+      document.querySelectorAll('.oura-chip').forEach(c => c.classList.remove('selected'));
+      hideOuraCard();
     }
 
-    document.getElementById('reflect-tags').addEventListener('input', checkOuraTrigger);
+    document.querySelectorAll('.oura-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const metric = chip.dataset.metric;
+        if (ouraSelected.has(metric)) {
+          ouraSelected.delete(metric);
+          chip.classList.remove('selected');
+        } else {
+          ouraSelected.add(metric);
+          chip.classList.add('selected');
+        }
+        if (ouraSelected.size) ensureOuraData();
+        else hideOuraCard();
+      });
+    });
 
     // ── Reflect ────────────────────────────────────────────────────────────────
     let selectedMood = '', reflectPromptUsed = '';
@@ -1655,24 +1703,43 @@
       stoic:      'Write a Stoic-influenced reflection prompt (Marcus Aurelius, Epictetus, Seneca style). Focus on control, virtue, and honest self-examination. Return JSON: { prompt: "..." }',
     };
 
-    document.querySelectorAll('.prompt-flavor-btn').forEach(btn =>
-      btn.addEventListener('click', () => loadReflectPrompt(btn.dataset.flavor, btn))
+    // ── Prompt screen ─────────────────────────────────────────────────────────
+    let promptScreenText = '';
+
+    function resetPromptScreen() {
+      promptScreenText = '';
+      document.getElementById('prompt-screen-text').textContent = 'Tap a flavor above to generate.';
+      document.getElementById('btn-prompt-reflect').classList.add('hidden');
+      document.querySelectorAll('#screen-prompt .prompt-flavor-btn').forEach(b => b.classList.remove('loading'));
+    }
+
+    document.querySelectorAll('#screen-prompt .prompt-flavor-btn').forEach(btn =>
+      btn.addEventListener('click', () => loadPromptForScreen(btn.dataset.flavor, btn))
     );
 
-    async function loadReflectPrompt(flavor, btnEl) {
-      document.querySelectorAll('.prompt-flavor-btn').forEach(b => b.classList.remove('loading'));
+    async function loadPromptForScreen(flavor, btnEl) {
+      document.querySelectorAll('#screen-prompt .prompt-flavor-btn').forEach(b => b.classList.remove('loading'));
       if (btnEl) btnEl.classList.add('loading');
-      document.getElementById('reflect-prompt-text').textContent = 'Generating prompt...';
+      document.getElementById('prompt-screen-text').textContent = 'Generating prompt...';
+      document.getElementById('btn-prompt-reflect').classList.add('hidden');
       try {
         const d = await callClaude(PROMPT_MAP[flavor]);
-        reflectPromptUsed = d.prompt || '';
-        document.getElementById('reflect-prompt-text').textContent = reflectPromptUsed || 'No prompt returned';
+        promptScreenText = d.prompt || '';
+        document.getElementById('prompt-screen-text').textContent = promptScreenText || 'No prompt returned';
+        if (promptScreenText) document.getElementById('btn-prompt-reflect').classList.remove('hidden');
       } catch (e) {
-        const msg = e.message.includes('No API key') ? 'Add your API key in settings' : 'Could not generate prompt';
-        document.getElementById('reflect-prompt-text').textContent = msg;
+        const msg = e.message.includes('No API key') ? 'Add your API key in Settings' : 'Could not generate prompt';
+        document.getElementById('prompt-screen-text').textContent = msg;
       }
-      document.querySelectorAll('.prompt-flavor-btn').forEach(b => b.classList.remove('loading'));
+      document.querySelectorAll('#screen-prompt .prompt-flavor-btn').forEach(b => b.classList.remove('loading'));
     }
+
+    document.getElementById('btn-prompt-reflect').addEventListener('click', () => {
+      if (!promptScreenText) return;
+      reflectPromptUsed = promptScreenText;
+      hideModal();
+      navigate('reflect');
+    });
 
     document.getElementById('btn-flag-insight').addEventListener('click', () => {
       const text = document.getElementById('reflect-textarea').value.trim();
@@ -1703,7 +1770,7 @@
     document.getElementById('btn-save-reflection').addEventListener('click', async () => {
       const text = document.getElementById('reflect-textarea').value.trim();
       if (!text) return showToast('Write something first');
-      const tags = document.getElementById('reflect-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+      const ouraTags = Array.from(ouraSelected);
       const btn = document.getElementById('btn-save-reflection');
       btn.disabled = true; btn.textContent = 'Saving...';
       try {
@@ -1712,7 +1779,7 @@
           body: JSON.stringify({
             text, date: today(),
             mood: selectedMood || null,
-            tags: tags.length ? tags : null,
+            tags: ouraTags.length ? ouraTags : null,
             prompt_used: reflectPromptUsed || null,
           }),
         });
@@ -1725,11 +1792,21 @@
 
     function resetReflect() {
       document.getElementById('reflect-textarea').value = '';
-      document.getElementById('reflect-tags').value = '';
-      document.getElementById('reflect-prompt-text').textContent = 'Write freely below, or get a prompt to start.';
       document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
-      hideOuraCard();
+      resetOuraSelection();
       selectedMood = ''; reflectPromptUsed = '';
+      renderReflectPromptBanner();
+    }
+
+    function renderReflectPromptBanner() {
+      const el = document.getElementById('reflect-prompt-banner');
+      if (reflectPromptUsed) {
+        el.textContent = reflectPromptUsed;
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+        el.textContent = '';
+      }
     }
 
     // ── Stoic ──────────────────────────────────────────────────────────────────
@@ -2262,7 +2339,6 @@
         document.getElementById('checkin-card').classList.remove('hidden');
 
         document.getElementById('checkin-reflect').onclick = () => {
-          document.getElementById('reflect-prompt-text').textContent = CHECKIN_PROMPTS[qualifying.prompt_used];
           reflectPromptUsed = CHECKIN_PROMPTS[qualifying.prompt_used];
           localStorage.setItem('still_checkin_date', today());
           document.getElementById('checkin-card').classList.add('hidden');
