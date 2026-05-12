@@ -2436,8 +2436,27 @@
         loadResurface(),
         loadCheckin(),
       ]);
+      handleDeepLink();
     }
     init();
+
+    // Deep link: ?capture=<text> opens the quick-capture modal pre-filled.
+    function handleDeepLink() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const captureText = params.get('capture');
+        if (!captureText) return;
+        // Clean the URL so a refresh doesn't reopen the modal.
+        params.delete('capture');
+        const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+        window.history.replaceState({}, '', clean);
+        openCapture();
+        setTimeout(() => {
+          const ta = document.getElementById('capture-input');
+          if (ta) { ta.value = captureText; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        }, 60);
+      } catch(e) {}
+    }
 
     function scheduleMidnightRefresh() {
       const n = new Date();
