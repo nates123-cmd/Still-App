@@ -23,6 +23,14 @@
       --radius:  14px;
       --font:    -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
+    html.dark {
+      --bg:      #1A1714;
+      --text:    #EDE9E3;
+      --muted:   #8A857F;
+      --accent:  #B09880;
+      --card-bg: #232019;
+      --border:  #302B26;
+    }
     html, body {
       height: 100%;
       background: var(--bg);
@@ -34,7 +42,6 @@
       display: flex;
       flex-direction: column;
       min-height: 100dvh;
-      padding-bottom: env(safe-area-inset-bottom);
     }
 
     /* ── Screen system ──────────────────────────── */
@@ -42,7 +49,7 @@
       display: none;
       flex-direction: column;
       flex: 1;
-      padding: 24px 20px;
+      padding: 24px 20px calc(80px + env(safe-area-inset-bottom));
       max-width: 600px;
       width: 100%;
       margin: 0 auto;
@@ -141,6 +148,41 @@
     .modal-textarea:focus { border-color: var(--accent); }
     .modal-actions { display: flex; gap: 10px; }
     .modal-actions .btn { flex: 1; }
+    /* ── Journal log ────────────────────────────── */
+    .log-entry {
+      background: var(--card-bg); border-radius: var(--radius);
+      border: 1.5px solid var(--border); padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .log-entry-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .log-date { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+    .log-tag {
+      font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+      padding: 2px 7px; border-radius: 20px; background: var(--border); color: var(--muted);
+    }
+    .log-tag.stoic { background: rgba(176,152,128,0.2); color: var(--accent); }
+    .log-mood { font-size: 0.75rem; color: var(--muted); margin-left: auto; }
+    .log-text {
+      font-size: 0.88rem; line-height: 1.6; color: var(--text);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .log-text.collapsed {
+      display: -webkit-box; -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .btn-expand {
+      background: none; border: none; color: var(--accent); font-size: 0.78rem;
+      cursor: pointer; padding: 0; font-family: var(--font); align-self: flex-start;
+    }
+
+    .more-item {
+      padding: 16px 4px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: opacity 0.1s;
+    }
+    .more-item:last-child { border-bottom: none; }
+    .more-item:active { opacity: 0.6; }
+    .more-item-label { font-size: 1rem; font-weight: 500; margin-bottom: 3px; }
+    .more-item-sub { font-size: 0.82rem; color: var(--muted); }
 
     /* ── API Key screen ─────────────────────────── */
     #screen-apikey { justify-content: center; gap: 20px; text-align: center; }
@@ -181,7 +223,7 @@
 
     .habits-empty { font-size: 0.88rem; color: var(--muted); font-style: italic; }
     .habit-item {
-      display: flex; align-items: center; gap: 12px; padding: 9px 0;
+      display: flex; align-items: center; gap: 12px; padding: 10px 0;
       cursor: pointer; border-bottom: 1px solid var(--border); user-select: none;
     }
     .habit-item:last-child { border-bottom: none; }
@@ -191,8 +233,17 @@
       transition: background 0.15s, border-color 0.15s; font-size: 0.7rem;
     }
     .habit-check.done { background: var(--accent); border-color: var(--accent); color: var(--bg); }
-    .habit-name { font-size: 0.92rem; flex: 1; }
+    .habit-body { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .habit-name { font-size: 0.92rem; }
+    .habit-week { display: flex; align-items: center; gap: 3px; }
+    .habit-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0;
+    }
+    .habit-dot.done { background: var(--accent); }
+    .habit-dot.today { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+    .habit-streak { font-size: 0.72rem; color: var(--muted); margin-left: 5px; white-space: nowrap; }
 
+    .checkin-sub { font-size: 0.88rem; color: var(--text); line-height: 1.5; margin-bottom: 12px; }
     .challenge-name { font-size: 0.92rem; font-weight: 600; }
     .challenge-days-left { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
 
@@ -200,14 +251,33 @@
     .resurface-text { font-size: 0.92rem; line-height: 1.55; margin-bottom: 12px; }
     .resurface-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-    .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .activity-card {
-      background: var(--card-bg); border-radius: var(--radius); padding: 18px 16px;
-      cursor: pointer; border: 1.5px solid transparent; transition: border-color 0.15s, transform 0.1s;
+    /* ── Tab bar ────────────────────────────────── */
+    .tab-bar-wrap {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 100; background: var(--bg); border-top: 1px solid var(--border);
+      display: flex; justify-content: center;
     }
-    .activity-card:active { transform: scale(0.97); border-color: var(--accent); }
-    .activity-card h3 { font-size: 0.92rem; font-weight: 600; margin-bottom: 5px; }
-    .activity-card p  { font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
+    .tab-bar {
+      display: flex; width: 100%; max-width: 600px;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .tab-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 10px 0; cursor: pointer; gap: 3px;
+      color: var(--muted); font-size: 0.68rem; font-weight: 500;
+      border: none; background: none; font-family: var(--font);
+      -webkit-tap-highlight-color: transparent;
+      position: relative; transition: color 0.15s;
+      letter-spacing: 0.2px;
+    }
+    .tab-item.active { color: var(--text); }
+    .tab-item.active::before {
+      content: ''; position: absolute; top: 0; left: 50%;
+      transform: translateX(-50%); width: 18px; height: 2px;
+      background: var(--accent); border-radius: 0 0 2px 2px;
+    }
+    .tab-icon { font-size: 1.15rem; line-height: 1; }
 
     /* ── Shared: activity header ────────────────── */
     .activity-header { display: flex; align-items: center; gap: 12px; padding-top: 8px; }
@@ -457,33 +527,18 @@
       </div>
     </div>
 
-    <!-- Nav grid -->
-    <div class="cards-grid">
-      <div class="activity-card" data-nav="reflect">
-        <h3>Reflect</h3>
-        <p>Journal entry, guided or freeform</p>
+    <!-- Check-in card -->
+    <div class="card hidden" id="checkin-card">
+      <div class="card-header">
+        <span class="card-title" id="checkin-label">Morning Check-in</span>
       </div>
-      <div class="activity-card" data-nav="stoic">
-        <h3>Stoic Practice</h3>
-        <p>Evening review, morning intention, premeditatio</p>
-      </div>
-      <div class="activity-card" data-nav="insights">
-        <h3>Insights</h3>
-        <p>Your flagged observations</p>
-      </div>
-      <div class="activity-card" data-nav="challenges">
-        <h3>Challenges</h3>
-        <p>Science-based behavioral experiments</p>
-      </div>
-      <div class="activity-card" data-nav="pattern">
-        <h3>Pattern View</h3>
-        <p>What Claude notices across your entries</p>
-      </div>
-      <div class="activity-card" data-nav="captures">
-        <h3>Captures</h3>
-        <p>Review your dropped thoughts</p>
+      <div class="checkin-sub">How's it going?</div>
+      <div class="resurface-actions">
+        <button class="btn-sm" id="checkin-reflect">Reflect now</button>
+        <button class="btn-sm muted" id="checkin-dismiss">Dismiss</button>
       </div>
     </div>
+
   </div>
 
   <!-- ── Reflect ─────────────────────────────── -->
@@ -540,7 +595,7 @@
         <span id="stoic-breathe-count"></span>
       </div>
       <div id="stoic-breathe-phase" class="breathe-phase">Tap to begin</div>
-      <p class="breathe-sub">Box breathing · 4-4-4-4</p>
+      <p class="breathe-sub">Inhale 4 · Exhale 6</p>
       <div class="breathe-controls">
         <button class="btn btn-outline" id="btn-stoic-breathe-toggle">Start</button>
         <button class="btn btn-outline" id="btn-stoic-skip">Begin practice →</button>
@@ -610,6 +665,15 @@
     </div>
   </div>
 
+  <!-- ── Journal Log ─────────────────────────── -->
+  <div id="screen-log" class="screen">
+    <div class="activity-header">
+      <button class="btn-back" data-back>←</button>
+      <span class="activity-title">Journal</span>
+    </div>
+    <div id="log-list"></div>
+  </div>
+
   <script>
     // ── Constants ──────────────────────────────────────────────────────────────
     const SB_URL = 'https://xsmnfcmtbpeaccnyinkr.supabase.co';
@@ -666,7 +730,10 @@
       return String(str ?? '')
         .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
-    function today() { return new Date().toISOString().split('T')[0]; }
+    function today() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
     function daysAgoStr(ts) {
       const d = Math.floor((Date.now() - new Date(ts).getTime()) / 86400000);
       if (d === 0) return 'today';
@@ -756,11 +823,14 @@
     }
 
     // ── Navigation ─────────────────────────────────────────────────────────────
+    const TAB_SCREENS = new Set(['home','reflect','stoic','insights']);
     let navStack = [];
+
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       const s = document.getElementById('screen-' + id);
       if (s) { s.classList.add('active'); s.scrollTop = 0; }
+      syncTabBar(id);
     }
     function navigate(id) {
       const cur = document.querySelector('.screen.active');
@@ -778,12 +848,51 @@
       if (id === 'captures')      loadCaptures();
       if (id === 'habits-manage') loadHabitsManage();
       if (id === 'stoic')         initStoic();
+      if (id === 'log')           loadLog();
+    }
+    function syncTabBar(id) {
+      document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+      const tabId = TAB_SCREENS.has(id) ? 'tab-' + id : null;
+      if (tabId) document.getElementById(tabId)?.classList.add('active');
     }
 
     document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', goBack));
     document.querySelectorAll('[data-nav]').forEach(c =>
       c.addEventListener('click', () => navigate(c.dataset.nav))
     );
+
+    // Tab bar clicks (delegated — tab bar HTML lives after this script block)
+    document.addEventListener('click', e => {
+      const tab = e.target.closest('.tab-item[data-tab]');
+      if (!tab) return;
+      const t = tab.dataset.tab;
+      if (t === 'more') { showMoreSheet(); return; }
+      navStack = [];
+      navigate(t);
+    });
+
+    function showMoreSheet() {
+      const items = [
+        { nav: 'log',           label: 'Journal',      sub: 'All your reflections and stoic entries' },
+        { nav: 'challenges',    label: 'Challenges',   sub: 'Science-based behavioral experiments' },
+        { nav: 'pattern',       label: 'Pattern View', sub: 'What Claude notices across your entries' },
+        { nav: 'captures',      label: 'Captures',     sub: 'Review your dropped thoughts' },
+        { nav: 'habits-manage', label: 'Habits',       sub: 'Add or remove daily habits' },
+      ];
+      showModal(
+        items.map(i =>
+          '<div class="more-item" data-nav="' + i.nav + '">' +
+            '<div class="more-item-label">' + i.label + '</div>' +
+            '<div class="more-item-sub">' + i.sub + '</div>' +
+          '</div>'
+        ).join(''),
+        () => {
+          document.querySelectorAll('.more-item').forEach(el =>
+            el.addEventListener('click', () => { hideModal(); navigate(el.dataset.nav); })
+          );
+        }
+      );
+    }
 
     // ── Modal ──────────────────────────────────────────────────────────────────
     const overlay = document.getElementById('modal-overlay');
@@ -864,29 +973,55 @@
     }
 
     // ── Habits (home) ──────────────────────────────────────────────────────────
-    let allHabits = [], todayLogs = new Set(), habitLoading = false;
+    let allHabits = [], allLogs = [], habitLoading = false;
+
+    const isDoneToday = id => allLogs.some(l => l.habit_id === id && l.date === today());
 
     async function loadHabitsHome() {
       try {
+        const since = addDays(today(), -29);
         const [habits, logs] = await Promise.all([
           sbFetch('habits?active=eq.true&order=created_at.asc'),
-          sbFetch('habit_logs?date=eq.' + today() + '&select=habit_id'),
+          sbFetch('habit_logs?date=gte.' + since + '&select=habit_id,date'),
         ]);
         allHabits = habits || [];
-        todayLogs = new Set((logs || []).map(l => l.habit_id));
+        allLogs = logs || [];
         renderHabitsHome();
       } catch { document.getElementById('habits-checklist').innerHTML = '<p class="habits-empty">Could not load habits</p>'; }
+    }
+
+    function habitStreak(habitId) {
+      const done = new Set(allLogs.filter(l => l.habit_id === habitId).map(l => l.date));
+      let streak = 0;
+      const d = new Date();
+      if (!done.has(today())) d.setDate(d.getDate() - 1); // if not done today, start from yesterday
+      while (true) {
+        const ds = d.toISOString().split('T')[0];
+        if (done.has(ds)) { streak++; d.setDate(d.getDate() - 1); }
+        else break;
+      }
+      return streak;
     }
 
     function renderHabitsHome() {
       const el = document.getElementById('habits-checklist');
       if (!allHabits.length) { el.innerHTML = '<p class="habits-empty">No habits yet — tap Manage to add some</p>'; return; }
-      el.innerHTML = allHabits.map(h =>
-        '<div class="habit-item" data-hid="' + esc(h.id) + '">' +
-          '<div class="habit-check ' + (todayLogs.has(h.id) ? 'done' : '') + '">' + (todayLogs.has(h.id) ? '✓' : '') + '</div>' +
-          '<div class="habit-name">' + esc(h.name) + '</div>' +
-        '</div>'
-      ).join('');
+      const days = Array.from({length: 7}, (_, i) => addDays(today(), i - 6));
+      el.innerHTML = allHabits.map(h => {
+        const done = isDoneToday(h.id);
+        const doneDates = new Set(allLogs.filter(l => l.habit_id === h.id).map(l => l.date));
+        const streak = habitStreak(h.id);
+        const dots = days.map((d, i) =>
+          '<span class="habit-dot' + (doneDates.has(d) ? ' done' : '') + (i === 6 ? ' today' : '') + '"></span>'
+        ).join('');
+        return '<div class="habit-item" data-hid="' + esc(h.id) + '">' +
+          '<div class="habit-check ' + (done ? 'done' : '') + '">' + (done ? '✓' : '') + '</div>' +
+          '<div class="habit-body">' +
+            '<div class="habit-name">' + esc(h.name) + '</div>' +
+            '<div class="habit-week">' + dots + (streak > 0 ? '<span class="habit-streak">' + streak + 'd</span>' : '') + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
       el.querySelectorAll('.habit-item').forEach(item =>
         item.addEventListener('click', () => toggleHabit(item.dataset.hid))
       );
@@ -895,14 +1030,17 @@
     async function toggleHabit(id) {
       if (habitLoading) return;
       habitLoading = true;
-      if (todayLogs.has(id)) {
-        todayLogs.delete(id); renderHabitsHome();
-        try { await sbFetch('habit_logs?habit_id=eq.' + id + '&date=eq.' + today(), { method: 'DELETE', prefer: 'return=minimal' }); }
-        catch { todayLogs.add(id); renderHabitsHome(); }
+      const d = today();
+      const removeLocal = () => { allLogs = allLogs.filter(l => !(l.habit_id === id && l.date === d)); };
+      const addLocal    = () => { allLogs.push({ habit_id: id, date: d }); };
+      if (isDoneToday(id)) {
+        removeLocal(); renderHabitsHome();
+        try { await sbFetch('habit_logs?habit_id=eq.' + id + '&date=eq.' + d, { method: 'DELETE', prefer: 'return=minimal' }); }
+        catch { addLocal(); renderHabitsHome(); }
       } else {
-        todayLogs.add(id); renderHabitsHome();
-        try { await sbFetch('habit_logs', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ habit_id: id, date: today() }) }); }
-        catch { todayLogs.delete(id); renderHabitsHome(); }
+        addLocal(); renderHabitsHome();
+        try { await sbFetch('habit_logs', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ habit_id: id, date: d }) }); }
+        catch { removeLocal(); renderHabitsHome(); }
       }
       habitLoading = false;
     }
@@ -1067,10 +1205,10 @@
     }
     function runStoicPhase() {
       if (!sBreathRunning) return;
-      const PHASES = ['Inhale','Hold','Exhale','Hold'];
-      const DURS   = [4,4,4,4];
-      const phase  = PHASES[sBreathPhase % 4];
-      const dur    = DURS[sBreathPhase % 4];
+      const PHASES = ['Inhale','Exhale'];
+      const DURS   = [4,6];
+      const phase  = PHASES[sBreathPhase % 2];
+      const dur    = DURS[sBreathPhase % 2];
       const ring   = document.getElementById('stoic-breathe-ring');
       document.getElementById('stoic-breathe-phase').textContent = phase;
       if (phase === 'Inhale') { ring.style.transition = `transform ${dur}s ease-in-out`; ring.classList.add('expand'); }
@@ -1380,6 +1518,95 @@
       } catch { showToast('Failed to add habit'); input.value = name; }
     }
 
+    // ── Theme + midnight refresh ────────────────────────────────────────────────
+    let lastKnownDate = today();
+
+    function applyTheme() {
+      const h = new Date().getHours();
+      const dark = h < 6 || h >= 20;
+      document.documentElement.classList.toggle('dark', dark);
+      document.querySelector('meta[name="theme-color"]').content = dark ? '#1A1714' : '#F5F2EE';
+
+      const currentDate = today();
+      if (currentDate !== lastKnownDate) {
+        lastKnownDate = currentDate;
+        renderHabitsHome();
+        loadHabitsHome();
+        loadActiveChallengeHome();
+      }
+    }
+    applyTheme();
+    setInterval(applyTheme, 60000);
+
+    // ── Check-in ───────────────────────────────────────────────────────────────
+    const CHECKIN_PROMPTS = {
+      'Morning Intention':    "You set a morning intention earlier today. How has it played out so far? What's happened, what's still in your control, what would you do differently from here?",
+      'Premeditatio Malorum': "You reflected on something you were bracing for this morning. How has it gone? Did it happen? How did you respond?",
+    };
+
+    async function loadCheckin() {
+      if (localStorage.getItem('still_checkin_date') === today()) return;
+      const h = new Date().getHours();
+      try {
+        const rows = await sbFetch('reflections?date=eq.' + today() + '&tags=cs.%7Bstoic%7D&order=created_at.desc');
+        if (!rows?.length) return;
+        const qualifying = rows.find(r => {
+          if (r.prompt_used === 'Morning Intention'    && h >= 12) return true;
+          if (r.prompt_used === 'Premeditatio Malorum' && h >= 14) return true;
+          return false;
+        });
+        if (!qualifying) return;
+        const label = qualifying.prompt_used === 'Morning Intention' ? 'Morning Check-in' : 'Premeditatio Check-in';
+        document.getElementById('checkin-label').textContent = label;
+        document.getElementById('checkin-card').classList.remove('hidden');
+
+        document.getElementById('checkin-reflect').onclick = () => {
+          document.getElementById('reflect-prompt-text').textContent = CHECKIN_PROMPTS[qualifying.prompt_used];
+          reflectPromptUsed = CHECKIN_PROMPTS[qualifying.prompt_used];
+          localStorage.setItem('still_checkin_date', today());
+          document.getElementById('checkin-card').classList.add('hidden');
+          navigate('reflect');
+        };
+        document.getElementById('checkin-dismiss').onclick = () => {
+          localStorage.setItem('still_checkin_date', today());
+          document.getElementById('checkin-card').classList.add('hidden');
+        };
+      } catch { /* silent */ }
+    }
+
+    // ── Journal Log ────────────────────────────────────────────────────────────
+    async function loadLog() {
+      const el = document.getElementById('log-list');
+      el.innerHTML = '<div class="loading-row"><div class="spinner"></div></div>';
+      try {
+        const rows = await sbFetch('reflections?order=created_at.desc&limit=100');
+        if (!rows?.length) { el.innerHTML = '<p class="list-empty">No entries yet.</p>'; return; }
+        el.innerHTML = rows.map((r, i) => {
+          const isStoic = r.tags?.includes('stoic');
+          const tagLabel = isStoic ? 'stoic' : (r.prompt_used ? 'reflect' : 'freeform');
+          const id = 'log-text-' + i;
+          return '<div class="log-entry">' +
+            '<div class="log-entry-header">' +
+              '<span class="log-date">' + fmtDate(r.created_at) + '</span>' +
+              '<span class="log-tag ' + (isStoic ? 'stoic' : '') + '">' + tagLabel + '</span>' +
+              (r.mood ? '<span class="log-mood">' + esc(r.mood) + '</span>' : '') +
+            '</div>' +
+            (r.prompt_used && !isStoic ? '<div style="font-size:0.78rem;color:var(--muted);font-style:italic">' + esc(r.prompt_used) + '</div>' : '') +
+            '<div class="log-text collapsed" id="' + id + '">' + esc(r.text) + '</div>' +
+            '<button class="btn-expand" data-target="' + id + '">Show more</button>' +
+          '</div>';
+        }).join('');
+
+        el.querySelectorAll('.btn-expand').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const target = document.getElementById(btn.dataset.target);
+            const collapsed = target.classList.toggle('collapsed');
+            btn.textContent = collapsed ? 'Show more' : 'Show less';
+          });
+        });
+      } catch { el.innerHTML = '<p class="list-empty">Failed to load entries</p>'; }
+    }
+
     // ── Init ───────────────────────────────────────────────────────────────────
     async function init() {
       showScreen('home');
@@ -1387,9 +1614,23 @@
         loadHabitsHome(),
         loadActiveChallengeHome(),
         loadResurface(),
+        loadCheckin(),
       ]);
     }
     init();
+
+    function scheduleMidnightRefresh() {
+      const n = new Date();
+      const next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 5);
+      setTimeout(() => {
+        renderHabitsHome();
+        loadActiveChallengeHome();
+        loadResurface();
+        loadCheckin();
+        scheduleMidnightRefresh();
+      }, next - n);
+    }
+    scheduleMidnightRefresh();
 
     // ── Service Worker ─────────────────────────────────────────────────────────
     if ('serviceWorker' in navigator) {
@@ -1399,5 +1640,25 @@
       });
     }
   </script>
+  <!-- ── Tab bar ────────────────────────────── -->
+  <div class="tab-bar-wrap">
+    <nav class="tab-bar">
+      <button class="tab-item active" id="tab-home" data-tab="home">
+        <span class="tab-icon">◉</span>Home
+      </button>
+      <button class="tab-item" id="tab-reflect" data-tab="reflect">
+        <span class="tab-icon">✦</span>Reflect
+      </button>
+      <button class="tab-item" id="tab-stoic" data-tab="stoic">
+        <span class="tab-icon">◎</span>Stoic
+      </button>
+      <button class="tab-item" id="tab-insights" data-tab="insights">
+        <span class="tab-icon">◈</span>Insights
+      </button>
+      <button class="tab-item" id="tab-more" data-tab="more">
+        <span class="tab-icon">···</span>More
+      </button>
+    </nav>
+  </div>
 </body>
 </html>
