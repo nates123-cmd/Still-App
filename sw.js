@@ -1,4 +1,4 @@
-const CACHE_NAME = 'still-v2';
+const CACHE_NAME = 'still-v3';
 const STATIC_ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
