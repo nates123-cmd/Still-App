@@ -582,13 +582,31 @@
 
     /* ── Insights ───────────────────────────────── */
     .list-empty { color: var(--muted); font-size: 0.9rem; font-style: italic; text-align: center; padding: 40px 0; }
-    .insight-item {
+    .insight-item, .thought-item {
       background: var(--card-bg); border-radius: var(--radius); border: 1.5px solid var(--border);
       padding: 16px; display: flex; flex-direction: column; gap: 10px;
     }
-    .insight-text { font-size: 0.92rem; line-height: 1.6; }
+    .insight-text, .thought-text { font-size: 0.92rem; line-height: 1.6; }
     .item-meta { font-size: 0.72rem; color: var(--muted); }
     .item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ── Thoughts (unified Captures + Insights) ── */
+    .thoughts-filter { display: flex; gap: 8px; flex-wrap: wrap; }
+    .thoughts-filter-btn {
+      padding: 6px 14px; border-radius: 20px; font-size: 0.82rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      color: var(--text); cursor: pointer; font-family: var(--font);
+      transition: transform 0.1s;
+    }
+    .thoughts-filter-btn:active { transform: scale(0.96); }
+    .thoughts-filter-btn.selected { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .thought-type-badge {
+      font-size: 0.62rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.6px; padding: 2px 8px; border-radius: 20px;
+      align-self: flex-start;
+    }
+    .thought-type-badge.capture { background: var(--border); color: var(--muted); }
+    .thought-type-badge.insight { background: rgba(176,152,128,0.2); color: var(--accent); }
 
     /* ── Challenges ─────────────────────────────── */
     .active-banner {
@@ -632,13 +650,6 @@
       padding: 16px; font-size: 0.92rem; line-height: 1.6;
     }
     .observation-item::before { content: '—'; color: var(--accent); margin-right: 8px; }
-
-    /* ── Captures ───────────────────────────────── */
-    .capture-item {
-      background: var(--card-bg); border-radius: var(--radius); border: 1.5px solid var(--border);
-      padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
-    }
-    .capture-item-text { font-size: 0.92rem; line-height: 1.55; }
 
     /* ── Habits manage ──────────────────────────── */
     .habit-manage-item {
@@ -703,7 +714,7 @@
       <button class="canvas-edge canvas-edge-top"    data-target="habits"   data-from="top">Habits</button>
       <button class="canvas-edge canvas-edge-bottom" data-target="reflect"  data-from="bottom">Reflect</button>
       <button class="canvas-edge canvas-edge-left"   data-target="stoic"    data-from="left">Stoic</button>
-      <button class="canvas-edge canvas-edge-right"  data-target="insights" data-from="right">Insights</button>
+      <button class="canvas-edge canvas-edge-right"  data-target="thoughts" data-from="right">Thoughts</button>
       <button class="canvas-center" id="canvas-center">
         <div class="canvas-brand">Still</div>
         <div class="canvas-date" id="canvas-date"></div>
@@ -862,13 +873,18 @@
     </div>
   </div>
 
-  <!-- ── Insights ────────────────────────────── -->
-  <div id="screen-insights" class="screen">
+  <!-- ── Thoughts (unified Captures + Insights) ─ -->
+  <div id="screen-thoughts" class="screen">
     <div class="activity-header">
       <button class="btn-back" data-back>←</button>
-      <span class="activity-title">Insights</span>
+      <span class="activity-title">Thoughts</span>
     </div>
-    <div id="insights-list"></div>
+    <div class="thoughts-filter">
+      <button class="thoughts-filter-btn selected" data-filter="captures">Captures</button>
+      <button class="thoughts-filter-btn" data-filter="insights">Insights</button>
+      <button class="thoughts-filter-btn" data-filter="all">All</button>
+    </div>
+    <div id="thoughts-list"></div>
   </div>
 
   <!-- ── Challenges ──────────────────────────── -->
@@ -891,14 +907,6 @@
     <div id="pattern-content"></div>
   </div>
 
-  <!-- ── Captures ────────────────────────────── -->
-  <div id="screen-captures" class="screen">
-    <div class="activity-header">
-      <button class="btn-back" data-back>←</button>
-      <span class="activity-title">Captures</span>
-    </div>
-    <div id="captures-list"></div>
-  </div>
 
   <!-- ── Habits Manage ───────────────────────── -->
   <div id="screen-habits-manage" class="screen">
@@ -1125,9 +1133,8 @@
       if (id === 'habits')        { loadHabitsHome(); loadActiveChallengeHome(); loadResurface(); loadCheckin(); }
       if (id === 'reflect')       renderReflectPromptBanner();
       if (id === 'prompt')        resetPromptScreen();
-      if (id === 'insights')      loadInsights();
+      if (id === 'thoughts')      loadThoughts();
       if (id === 'challenges')    loadChallenges();
-      if (id === 'captures')      loadCaptures();
       if (id === 'habits-manage') loadHabitsManage();
       if (id === 'stoic')         initStoic();
       if (id === 'log')           loadLog();
@@ -1135,12 +1142,12 @@
 
     // Gesture map: from home, swipe in any direction → destination; on dest, swipe back returns home.
     const GESTURE_NAV = {
-      home: { up: 'reflect', down: 'habits', left: 'insights', right: 'stoic' },
+      home: { up: 'reflect', down: 'habits', left: 'thoughts', right: 'stoic' },
     };
     // Content-follows-finger: swipe UP → destination enters from the bottom (slides up into view).
     const ENTER_SIDE = { up: 'bottom', down: 'top', left: 'right', right: 'left' };
-    const BACK_GESTURE = { reflect: 'down', habits: 'up', insights: 'right', stoic: 'left' };
-    const BACK_DIR = { reflect: 'top', habits: 'bottom', insights: 'left', stoic: 'right' };
+    const BACK_GESTURE = { reflect: 'down', habits: 'up', thoughts: 'right', stoic: 'left' };
+    const BACK_DIR = { reflect: 'top', habits: 'bottom', thoughts: 'left', stoic: 'right' };
 
     document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', goBack));
     document.querySelectorAll('[data-nav]').forEach(c =>
@@ -1192,7 +1199,7 @@
       const fromEdge = {
         reflect:  startY < BACK_EDGE,            // back=down, start at top
         habits:   startY > h - BACK_EDGE,        // back=up,   start at bottom
-        insights: startX < BACK_EDGE,            // back=right, start at left
+        thoughts: startX < BACK_EDGE,            // back=right, start at left
         stoic:    startX > w - BACK_EDGE,        // back=left,  start at right
       }[cur];
       if (fromEdge) goBack();
@@ -1290,7 +1297,6 @@
         { nav: 'log',           label: 'Journal',      sub: 'All your reflections and stoic entries' },
         { nav: 'challenges',    label: 'Challenges',   sub: 'Science-based behavioral experiments' },
         { nav: 'pattern',       label: 'Pattern View', sub: 'What Claude notices across your entries' },
-        { nav: 'captures',      label: 'Captures',     sub: 'Review your dropped thoughts' },
         { nav: 'habits-manage', label: 'Habits',       sub: 'Add or remove daily habits' },
         { action: 'settings',   label: 'Settings',     sub: 'API keys' },
       ];
@@ -2042,26 +2048,102 @@
     });
 
     // ── Insights ───────────────────────────────────────────────────────────────
-    async function loadInsights() {
-      const el = document.getElementById('insights-list');
-      el.innerHTML = '<div class="loading-row"><div class="spinner"></div></div>';
+    // ── Thoughts (unified Captures + Insights) ────────────────────────────────
+    let thoughtsFilter = 'captures';
+    let thoughtsCache = null;
+
+    async function loadThoughts() {
+      const list = document.getElementById('thoughts-list');
+      list.innerHTML = '<div class="loading-row"><div class="spinner"></div></div>';
       try {
-        const rows = await sbFetch('insights?order=created_at.desc');
-        if (!rows?.length) { el.innerHTML = '<p class="list-empty">No insights yet. Flag something worth keeping while writing a reflection.</p>'; return; }
-        el.innerHTML = rows.map(ins =>
-          '<div class="insight-item" data-id="' + esc(ins.id) + '">' +
-            '<div class="insight-text">' + esc(ins.text) + '</div>' +
-            '<div class="item-meta">' + fmtDate(ins.created_at) + (ins.pushed_to_break ? ' · Shared with Break' : '') + '</div>' +
-            '<div class="item-actions">' +
-              (!ins.pushed_to_break ? '<button class="btn-sm" data-push="' + esc(ins.id) + '" data-text="' + esc(ins.text) + '">→ Send to Break</button>' : '') +
-              '<button class="btn-sm muted" data-del-ins="' + esc(ins.id) + '">Delete</button>' +
-            '</div>' +
-          '</div>'
-        ).join('');
-        el.querySelectorAll('[data-push]').forEach(b => b.addEventListener('click', () => pushToBreak(b.dataset.push, b.dataset.text, b)));
-        el.querySelectorAll('[data-del-ins]').forEach(b => b.addEventListener('click', () => deleteInsight(b.dataset.delIns)));
-      } catch { el.innerHTML = '<p class="list-empty">Failed to load insights</p>'; }
+        const [captures, insights] = await Promise.all([
+          sbFetch('quick_captures?dismissed=eq.false&order=created_at.desc'),
+          sbFetch('insights?order=created_at.desc'),
+        ]);
+        thoughtsCache = [
+          ...(captures || []).map(c => ({ kind: 'capture', ...c })),
+          ...(insights || []).map(i => ({ kind: 'insight', ...i })),
+        ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        renderThoughts();
+      } catch { list.innerHTML = '<p class="list-empty">Failed to load thoughts</p>'; }
     }
+
+    function renderThoughts() {
+      if (!thoughtsCache) return;
+      const filtered = thoughtsFilter === 'all' ? thoughtsCache
+        : thoughtsCache.filter(t => t.kind === (thoughtsFilter === 'captures' ? 'capture' : 'insight'));
+      const list = document.getElementById('thoughts-list');
+      if (!filtered.length) {
+        const msg = thoughtsFilter === 'captures'
+          ? 'No captures. Drop a thought from the canvas (tap center).'
+          : thoughtsFilter === 'insights'
+          ? 'No insights yet. Flag something worth keeping while reflecting.'
+          : 'Nothing here yet.';
+        list.innerHTML = '<p class="list-empty">' + msg + '</p>';
+        return;
+      }
+      list.innerHTML = filtered.map(t => t.kind === 'capture' ? renderCaptureItem(t) : renderInsightItem(t)).join('');
+      wireThoughtActions();
+    }
+
+    function renderCaptureItem(c) {
+      return '<div class="thought-item" data-kind="capture" data-id="' + esc(c.id) + '">' +
+        '<span class="thought-type-badge capture">Capture' + (c.promoted ? ' · promoted' : '') + '</span>' +
+        '<div class="thought-text">' + esc(c.text) + '</div>' +
+        '<div class="item-meta">' + daysAgoStr(c.created_at) + '</div>' +
+        '<div class="item-actions">' +
+          (!c.promoted
+            ? '<button class="btn-sm" data-cap-ref="' + esc(c.id) + '" data-cap-txt="' + esc(c.text) + '">→ Reflect</button>' +
+              '<button class="btn-sm" data-cap-flag="' + esc(c.id) + '" data-cap-txt="' + esc(c.text) + '">Flag as insight</button>'
+            : '') +
+          '<button class="btn-sm muted" data-cap-dis="' + esc(c.id) + '">Dismiss</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderInsightItem(ins) {
+      return '<div class="thought-item" data-kind="insight" data-id="' + esc(ins.id) + '">' +
+        '<span class="thought-type-badge insight">Insight' + (ins.pushed_to_break ? ' · shared' : '') + '</span>' +
+        '<div class="thought-text">' + esc(ins.text) + '</div>' +
+        '<div class="item-meta">' + fmtDate(ins.created_at) + '</div>' +
+        '<div class="item-actions">' +
+          (!ins.pushed_to_break ? '<button class="btn-sm" data-push="' + esc(ins.id) + '" data-text="' + esc(ins.text) + '">→ Send to Break</button>' : '') +
+          '<button class="btn-sm muted" data-del-ins="' + esc(ins.id) + '">Delete</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function wireThoughtActions() {
+      const list = document.getElementById('thoughts-list');
+      list.querySelectorAll('[data-cap-ref]').forEach(b => b.addEventListener('click', () => {
+        document.getElementById('reflect-textarea').value = b.dataset.capTxt;
+        patchCapture(b.dataset.capRef, { promoted: true });
+        navigate('reflect');
+      }));
+      list.querySelectorAll('[data-cap-flag]').forEach(b => b.addEventListener('click', async () => {
+        try {
+          await sbFetch('insights', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ text: b.dataset.capTxt, pushed_to_break: false }) });
+          patchCapture(b.dataset.capFlag, { promoted: true });
+          showToast('Flagged as insight');
+          loadThoughts();
+        } catch { showToast('Failed'); }
+      }));
+      list.querySelectorAll('[data-cap-dis]').forEach(b => b.addEventListener('click', () => {
+        patchCapture(b.dataset.capDis, { dismissed: true });
+        b.closest('.thought-item').remove();
+      }));
+      list.querySelectorAll('[data-push]').forEach(b => b.addEventListener('click', () => pushToBreak(b.dataset.push, b.dataset.text, b)));
+      list.querySelectorAll('[data-del-ins]').forEach(b => b.addEventListener('click', () => deleteInsight(b.dataset.delIns)));
+    }
+
+    document.querySelectorAll('.thoughts-filter-btn').forEach(btn =>
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.thoughts-filter-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        thoughtsFilter = btn.dataset.filter;
+        renderThoughts();
+      })
+    );
 
     async function pushToBreak(id, text, btn) {
       btn.disabled = true; btn.textContent = 'Sending...';
@@ -2069,7 +2151,7 @@
         await sbFetch('mantras', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ text }) });
         await sbFetch('insights?id=eq.' + id, { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ pushed_to_break: true }) });
         showToast('Sent to Break as mantra');
-        loadInsights();
+        loadThoughts();
       } catch { showToast('Failed to send'); btn.disabled = false; btn.textContent = '→ Send to Break'; }
     }
 
@@ -2077,7 +2159,7 @@
       try {
         await sbFetch('insights?id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
         showToast('Deleted');
-        loadInsights();
+        loadThoughts();
       } catch { showToast('Delete failed'); }
     }
 
@@ -2210,46 +2292,6 @@
       } catch (e) {
         el.innerHTML = '<p class="pattern-intro">Could not load patterns — ' + esc(e.message) + '</p>';
       } finally { btn.disabled = false; }
-    }
-
-    // ── Captures ───────────────────────────────────────────────────────────────
-    async function loadCaptures() {
-      const el = document.getElementById('captures-list');
-      el.innerHTML = '<div class="loading-row"><div class="spinner"></div></div>';
-      try {
-        const rows = await sbFetch('quick_captures?dismissed=eq.false&order=created_at.desc');
-        if (!rows?.length) { el.innerHTML = '<p class="list-empty">No captures yet. Drop a thought from the home screen.</p>'; return; }
-        el.innerHTML = rows.map(c =>
-          '<div class="capture-item">' +
-            '<div class="capture-item-text">' + esc(c.text) + '</div>' +
-            '<div class="item-meta">' + daysAgoStr(c.created_at) + (c.promoted ? ' · promoted' : '') + '</div>' +
-            '<div class="item-actions">' +
-              (!c.promoted
-                ? '<button class="btn-sm" data-cap-ref="' + esc(c.id) + '" data-cap-txt="' + esc(c.text) + '">→ Reflect</button>' +
-                  '<button class="btn-sm" data-cap-flag="' + esc(c.id) + '" data-cap-txt="' + esc(c.text) + '">Flag as insight</button>'
-                : '') +
-              '<button class="btn-sm muted" data-cap-dis="' + esc(c.id) + '">Dismiss</button>' +
-            '</div>' +
-          '</div>'
-        ).join('');
-        el.querySelectorAll('[data-cap-ref]').forEach(b => b.addEventListener('click', () => {
-          document.getElementById('reflect-textarea').value = b.dataset.capTxt;
-          patchCapture(b.dataset.capRef, { promoted: true });
-          navigate('reflect');
-        }));
-        el.querySelectorAll('[data-cap-flag]').forEach(b => b.addEventListener('click', async () => {
-          try {
-            await sbFetch('insights', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ text: b.dataset.capTxt, pushed_to_break: false }) });
-            patchCapture(b.dataset.capFlag, { promoted: true });
-            showToast('Saved as insight');
-            loadCaptures();
-          } catch { showToast('Failed'); }
-        }));
-        el.querySelectorAll('[data-cap-dis]').forEach(b => b.addEventListener('click', () => {
-          patchCapture(b.dataset.capDis, { dismissed: true });
-          b.closest('.capture-item').remove();
-        }));
-      } catch { el.innerHTML = '<p class="list-empty">Failed to load captures</p>'; }
     }
 
     // ── Habits Manage ──────────────────────────────────────────────────────────
