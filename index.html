@@ -110,8 +110,20 @@
       color: var(--muted);
       opacity: 0.55;
       font-weight: 500;
-      pointer-events: none;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--font);
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s ease, background 0.15s ease;
     }
+    .canvas-edge:hover { opacity: 1; background: rgba(168, 152, 128, 0.07); }
+    .canvas-edge:active { opacity: 1; background: rgba(168, 152, 128, 0.14); }
     .canvas-edge-top    { grid-area: top; }
     .canvas-edge-bottom { grid-area: bottom; }
     .canvas-edge-left   { grid-area: left; writing-mode: vertical-rl; transform: rotate(180deg); }
@@ -324,9 +336,11 @@
     .capture-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
     /* ── API Key screen ─────────────────────────── */
-    #screen-apikey { justify-content: center; gap: 20px; text-align: center; }
-    #screen-apikey h1 { font-size: 1.6rem; font-weight: 600; letter-spacing: -0.5px; }
-    #screen-apikey p  { color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
+    #screen-apikey { gap: 18px; }
+    .settings-group { display: flex; flex-direction: column; gap: 6px; }
+    .settings-label { font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .settings-help { font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
+    .settings-help a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
     #screen-apikey input {
       width: 100%; padding: 14px 16px; border: 1.5px solid var(--border);
       border-radius: var(--radius); background: var(--bg);
@@ -425,6 +439,43 @@
     }
     .prompt-flavor-btn:active { transform: scale(0.95); }
     .prompt-flavor-btn.loading { opacity: 0.45; pointer-events: none; }
+
+    .oura-card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .oura-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .oura-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 10px;
+    }
+    .oura-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px 0;
+    }
+    .oura-stat-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.3px; }
+    .oura-stat-value { font-size: 1.4rem; font-weight: 600; line-height: 1.1; color: var(--text); }
+    .oura-stat-value.dim { color: var(--muted); }
+    .oura-stat-sub   { font-size: 0.72rem; color: var(--muted); }
+    .oura-loading    { font-size: 0.85rem; color: var(--muted); font-style: italic; padding: 4px 0; }
+    .oura-error      { font-size: 0.85rem; color: var(--muted); font-style: italic; padding: 4px 0; }
 
     .reflect-textarea {
       border: 1.5px solid var(--border); border-radius: var(--radius);
@@ -622,20 +673,34 @@
 
   <!-- ── API Key ─────────────────────────────── -->
   <div id="screen-apikey" class="screen">
-    <h1>Still</h1>
-    <p>Add your Anthropic API key to use Claude-powered prompts and pattern analysis. Your key is stored locally and never shared.</p>
-    <input id="apikey-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
-    <button class="btn btn-primary" id="btn-apikey-save">Save key</button>
+    <div class="activity-header">
+      <button class="btn-back" data-back>←</button>
+      <span class="activity-title">Settings</span>
+    </div>
+
+    <div class="settings-group">
+      <label class="settings-label" for="apikey-input">Anthropic API key</label>
+      <p class="settings-help">Powers Claude prompts and pattern analysis. Stored locally; never shared.</p>
+      <input id="apikey-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
+    </div>
+
+    <div class="settings-group">
+      <label class="settings-label" for="oura-pat-input">Oura Personal Access Token</label>
+      <p class="settings-help">Auto-pulls sleep, readiness, activity, and HRV into reflections tagged sleep / energy / focus / mood. <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" rel="noopener">Generate a PAT →</a></p>
+      <input id="oura-pat-input" type="password" placeholder="..." autocomplete="off" />
+    </div>
+
+    <button class="btn btn-primary" id="btn-apikey-save">Save</button>
     <button class="btn-ghost" id="btn-apikey-skip">Skip for now</button>
   </div>
 
   <!-- ── Home (gesture canvas) ───────────────── -->
   <div id="screen-home" class="screen active screen-canvas">
     <div class="canvas" id="home-canvas">
-      <div class="canvas-edge canvas-edge-top">Habits</div>
-      <div class="canvas-edge canvas-edge-bottom">Reflect</div>
-      <div class="canvas-edge canvas-edge-left">Stoic</div>
-      <div class="canvas-edge canvas-edge-right">Insights</div>
+      <button class="canvas-edge canvas-edge-top"    data-target="habits"   data-from="top">Habits</button>
+      <button class="canvas-edge canvas-edge-bottom" data-target="reflect"  data-from="bottom">Reflect</button>
+      <button class="canvas-edge canvas-edge-left"   data-target="stoic"    data-from="left">Stoic</button>
+      <button class="canvas-edge canvas-edge-right"  data-target="insights" data-from="right">Insights</button>
       <button class="canvas-center" id="canvas-center">
         <div class="canvas-brand">Still</div>
         <div class="canvas-date" id="canvas-date"></div>
@@ -714,6 +779,8 @@
         <button class="prompt-flavor-btn" data-flavor="stoic">Stoic</button>
       </div>
     </div>
+
+    <div class="oura-card hidden" id="oura-card"></div>
 
     <textarea class="reflect-textarea" id="reflect-textarea" placeholder="What's on your mind..."></textarea>
 
@@ -916,20 +983,24 @@
       return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
-    // ── API key ────────────────────────────────────────────────────────────────
-    function getApiKey() { return localStorage.getItem('anthropic_api_key') || ''; }
+    // ── Settings (API key + Oura PAT) ──────────────────────────────────────────
+    function getApiKey()  { return localStorage.getItem('anthropic_api_key') || ''; }
     function setApiKey(k) { localStorage.setItem('anthropic_api_key', k.trim()); }
+    function getOuraPat() { return localStorage.getItem('still_oura_pat') || ''; }
+    function setOuraPat(k){ localStorage.setItem('still_oura_pat', k.trim()); }
 
     document.getElementById('btn-apikey-save').addEventListener('click', () => {
-      const k = document.getElementById('apikey-input').value.trim();
-      if (!k) return showToast('Enter a valid key');
-      setApiKey(k);
-      showToast('Key saved');
-      navigate('home');
+      const apiVal  = document.getElementById('apikey-input').value.trim();
+      const ouraVal = document.getElementById('oura-pat-input').value.trim();
+      setApiKey(apiVal);
+      setOuraPat(ouraVal);
+      showToast('Saved');
+      goBack();
     });
     document.getElementById('btn-apikey-skip').addEventListener('click', () => navigate('home'));
     function openSettings() {
       document.getElementById('apikey-input').value = getApiKey();
+      document.getElementById('oura-pat-input').value = getOuraPat();
       navigate('apikey');
     }
 
@@ -1038,6 +1109,7 @@
     function onEnter(id) {
       if (id === 'home')          renderCanvasDate();
       if (id === 'habits')        { loadHabitsHome(); loadActiveChallengeHome(); loadResurface(); loadCheckin(); }
+      if (id === 'reflect')       checkOuraTrigger();
       if (id === 'insights')      loadInsights();
       if (id === 'challenges')    loadChallenges();
       if (id === 'captures')      loadCaptures();
@@ -1149,6 +1221,11 @@
     canvasCenter.addEventListener('pointerleave', cancelPress);
     canvasCenter.addEventListener('pointercancel', cancelPress);
     canvasCenter.addEventListener('click', () => { if (!longPressFired) openCapture(); });
+
+    // ── Canvas edges: click to navigate (alternative to swiping) ────────────────
+    document.querySelectorAll('.canvas-edge').forEach(btn =>
+      btn.addEventListener('click', () => navigate(btn.dataset.target, btn.dataset.from))
+    );
 
     function renderCanvasDate() {
       const el = document.getElementById('canvas-date');
@@ -1458,6 +1535,119 @@
       challengeToggling = false;
     });
 
+    // ── Oura biometric context (auto-pulled on relevant tags) ──────────────────
+    const OURA_TRIGGER_TAGS = ['sleep','energy','focus','mood','tired','rest','recovery','workout','exercise','anxious','calm'];
+    let ouraCache = null;          // { date, data } for the current day
+    let ouraLoadingPromise = null;
+
+    async function ouraFetch(path) {
+      const pat = getOuraPat();
+      if (!pat) throw new Error('Add an Oura Personal Access Token in Settings to enable.');
+      const yesterday = addDays(today(), -1);
+      const u = new URL(SB_URL + '/functions/v1/oura-proxy');
+      u.searchParams.set('path', path);
+      u.searchParams.set('start_date', yesterday);
+      u.searchParams.set('end_date', today());
+      const r = await fetch(u.toString(), {
+        headers: { 'x-oura-pat': pat, 'apikey': SB_KEY },
+      });
+      if (!r.ok) {
+        let detail = '';
+        try { detail = (await r.json()).error || ''; } catch {}
+        throw new Error('Oura error ' + r.status + (detail ? ' — ' + detail : ''));
+      }
+      return r.json();
+    }
+
+    async function loadOuraToday() {
+      if (ouraCache && ouraCache.date === today()) return ouraCache.data;
+      if (ouraLoadingPromise) return ouraLoadingPromise;
+      ouraLoadingPromise = (async () => {
+        const [sleep, readiness, activity] = await Promise.all([
+          ouraFetch('daily_sleep').catch(() => null),
+          ouraFetch('daily_readiness').catch(() => null),
+          ouraFetch('daily_activity').catch(() => null),
+        ]);
+        const data = { sleep, readiness, activity };
+        ouraCache = { date: today(), data };
+        return data;
+      })();
+      try { return await ouraLoadingPromise; }
+      finally { ouraLoadingPromise = null; }
+    }
+
+    function pick(rows) {
+      const arr = rows?.data;
+      return Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null;
+    }
+
+    function fmtSleepDuration(sec) {
+      if (!sec || sec < 0) return null;
+      const h = Math.floor(sec / 3600);
+      const m = Math.round((sec % 3600) / 60);
+      return h + 'h ' + String(m).padStart(2, '0') + 'm';
+    }
+
+    function renderOuraCard(data) {
+      const card = document.getElementById('oura-card');
+      const s = pick(data.sleep);
+      const r = pick(data.readiness);
+      const a = pick(data.activity);
+      const sleepScore = s?.score ?? '—';
+      const sleepHrs   = fmtSleepDuration(s?.total_sleep_duration) || (s?.contributors?.total_sleep != null ? s.contributors.total_sleep + '/100' : '');
+      const readiness  = r?.score ?? '—';
+      const hrvHint    = r?.contributors?.hrv_balance != null ? 'HRV ' + r.contributors.hrv_balance : '';
+      const steps      = a?.steps != null ? a.steps.toLocaleString() : '—';
+      const actMin     = a?.total_calories != null ? Math.round(a.total_calories) + ' cal' : '';
+      const dim = v => (v === '—' ? ' dim' : '');
+      card.innerHTML =
+        '<div class="oura-card-header"><span>Last night · today</span><span>Oura</span></div>' +
+        '<div class="oura-grid">' +
+          '<div class="oura-stat"><div class="oura-stat-label">Sleep</div>' +
+            '<div class="oura-stat-value' + dim(sleepScore) + '">' + sleepScore + '</div>' +
+            (sleepHrs ? '<div class="oura-stat-sub">' + sleepHrs + '</div>' : '') +
+          '</div>' +
+          '<div class="oura-stat"><div class="oura-stat-label">Readiness</div>' +
+            '<div class="oura-stat-value' + dim(readiness) + '">' + readiness + '</div>' +
+            (hrvHint ? '<div class="oura-stat-sub">' + hrvHint + '</div>' : '') +
+          '</div>' +
+          '<div class="oura-stat"><div class="oura-stat-label">Activity</div>' +
+            '<div class="oura-stat-value' + dim(steps) + '">' + steps + '</div>' +
+            (actMin ? '<div class="oura-stat-sub">' + actMin + '</div>' : '') +
+          '</div>' +
+        '</div>';
+    }
+
+    async function showOuraCard() {
+      const card = document.getElementById('oura-card');
+      card.classList.remove('hidden');
+      if (ouraCache && ouraCache.date === today()) { renderOuraCard(ouraCache.data); return; }
+      card.innerHTML = '<div class="oura-loading">Pulling biometric context…</div>';
+      try {
+        const data = await loadOuraToday();
+        if (!data.sleep && !data.readiness && !data.activity) {
+          card.innerHTML = '<div class="oura-error">No Oura data returned. Check your PAT in Settings.</div>';
+          return;
+        }
+        renderOuraCard(data);
+      } catch (e) {
+        card.innerHTML = '<div class="oura-error">' + esc(e.message) + '</div>';
+      }
+    }
+
+    function hideOuraCard() {
+      document.getElementById('oura-card').classList.add('hidden');
+    }
+
+    function checkOuraTrigger() {
+      const raw = document.getElementById('reflect-tags').value.toLowerCase();
+      const tags = raw.split(',').map(t => t.trim()).filter(Boolean);
+      const hit = tags.some(t => OURA_TRIGGER_TAGS.includes(t));
+      if (hit) showOuraCard(); else hideOuraCard();
+    }
+
+    document.getElementById('reflect-tags').addEventListener('input', checkOuraTrigger);
+
     // ── Reflect ────────────────────────────────────────────────────────────────
     let selectedMood = '', reflectPromptUsed = '';
 
@@ -1550,6 +1740,7 @@
       document.getElementById('reflect-tags').value = '';
       document.getElementById('reflect-prompt-text').textContent = 'Write freely below, or get a prompt to start.';
       document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+      hideOuraCard();
       selectedMood = ''; reflectPromptUsed = '';
     }
 
