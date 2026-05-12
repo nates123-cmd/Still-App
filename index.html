@@ -1540,16 +1540,17 @@
     let ouraCache = null;          // { date, data } for the current day
     let ouraLoadingPromise = null;
 
+    const OURA_PROXY_PATH = '/functions/v1/smooth-processor';
     async function ouraFetch(path) {
       const pat = getOuraPat();
       if (!pat) throw new Error('Add an Oura Personal Access Token in Settings to enable.');
       const yesterday = addDays(today(), -1);
-      const u = new URL(SB_URL + '/functions/v1/oura-proxy');
+      const u = new URL(SB_URL + OURA_PROXY_PATH);
       u.searchParams.set('path', path);
       u.searchParams.set('start_date', yesterday);
       u.searchParams.set('end_date', today());
       const r = await fetch(u.toString(), {
-        headers: { 'x-oura-pat': pat, 'apikey': SB_KEY },
+        headers: { 'x-oura-pat': pat },
       });
       if (!r.ok) {
         let detail = '';
