@@ -1,8 +1,8 @@
 {
   "name": "Still",
   "short_name": "Still",
-  "start_url": "/still-app/",
-  "scope": "/still-app/",
+  "start_url": "/Still-App/",
+  "scope": "/Still-App/",
   "display": "standalone",
   "background_color": "#F5F2EE",
   "theme_color": "#F5F2EE",

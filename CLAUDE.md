@@ -3,7 +3,7 @@
 ## What it is
 A personal reflection PWA — the third app in a personal OS suite alongside Break (mind enrichment) and Tick (behavioral tracking). Still closes the loop on intentional growth: reflection, insight accumulation, positive habit streaks, and Stoic practice.
 
-**Live URL:** https://nates123-cmd.github.io/still-app/
+**Live URL:** https://nates123-cmd.github.io/Still-App/
 **Local dev:** `python3 -m http.server 8080` → http://localhost:8080
 
 ---
