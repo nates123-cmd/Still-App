@@ -123,6 +123,16 @@ Cross-app: insights are optionally pushed to Break's `mantras` table (same Supab
 
 ---
 
+## Oura biometric integration
+Sleep / readiness / activity (and HRV / resting HR contributors) are pulled from Oura via a Supabase Edge Function.
+
+- **PAT:** `localStorage['still_oura_pat']` — entered in Settings. Same key is read by Tide (shared `nates123-cmd.github.io` origin), so users set it once.
+- **Edge function:** lives at `supabase/functions/oura-proxy/index.ts` but is **deployed under the name `smooth-processor`**. Both Still and Tide hit `/functions/v1/smooth-processor`. Whitelists `personal_info / daily_sleep / daily_readiness / daily_activity / sleep / heartrate`. Forwards `?path=…&start_date=…&end_date=…` to `api.ouraring.com/v2/usercollection/{path}` with `Authorization: Bearer <PAT>` from the `x-oura-pat` request header. Deployed with `--no-verify-jwt`.
+- **In Still:** users chip-select sleep / readiness / activity per reflection; data is pulled on demand and rendered into a card above the entry. Pulled lazily, cached in-memory for `today()`.
+- **In Tide:** pulled on a 4-hour cadence into `tide_oura_daily` (one row per date) so drinking sessions can be joined against sleep / HRV / readiness on the Patterns screen.
+
+---
+
 ## Screens
 | Screen ID | Purpose |
 |---|---|
