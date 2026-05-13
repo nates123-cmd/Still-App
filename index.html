@@ -519,16 +519,16 @@
 
     /* ── Stoic ──────────────────────────────────── */
     .stoic-practice-zone { display: flex; flex-direction: column; gap: 16px; }
-    .practice-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .practice-type-row { display: flex; flex-direction: column; gap: 10px; }
     .practice-type-btn {
-      padding: 13px 8px; border-radius: var(--radius);
+      padding: 18px 16px; border-radius: var(--radius);
       background: var(--card-bg); border: 1.5px solid var(--border);
-      font-size: 0.82rem; font-weight: 600; color: var(--text);
-      cursor: pointer; text-align: center; transition: transform 0.1s; font-family: var(--font);
+      font-size: 0.95rem; font-weight: 600; color: var(--text);
+      cursor: pointer; text-align: center; transition: transform 0.1s, background 0.15s, border-color 0.15s;
+      font-family: var(--font); letter-spacing: 0.2px;
     }
-    .practice-type-btn:active { transform: scale(0.96); }
+    .practice-type-btn:active { transform: scale(0.98); }
     .practice-type-btn.selected { background: var(--text); color: var(--bg); border-color: var(--text); }
-    .practice-type-btn.featured { grid-column: span 2; padding: 16px; font-size: 0.92rem; }
 
     .stoic-meditate-zone {
       padding: 28px 18px; display: flex; flex-direction: column;
@@ -822,7 +822,7 @@
     <div class="stoic-practice-zone" id="stoic-practice-zone">
       <div class="section-label">Choose your practice</div>
       <div class="practice-type-row">
-        <button class="practice-type-btn featured" data-practice="meditation">Meditation</button>
+        <button class="practice-type-btn" data-practice="meditation">Meditation</button>
         <button class="practice-type-btn" data-practice="morning">Morning Intention</button>
         <button class="practice-type-btn" data-practice="evening">Evening Review</button>
         <button class="practice-type-btn" data-practice="premeditatio">Premeditatio Malorum</button>
