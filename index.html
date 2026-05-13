@@ -692,6 +692,29 @@
       animation: spin 0.8s linear infinite; flex-shrink: 0;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Mantras ────────────────────────────────── */
+    .mantra-text-area { display:flex; flex:1; align-items:center; justify-content:center; padding:20px 0; min-height:280px; }
+    .mantra-text { font-size:1.55rem; font-weight:600; letter-spacing:-0.4px; line-height:1.5; text-align:center; color:var(--text); }
+    .mantra-empty { text-align:center; color:var(--muted); padding:48px 0; line-height:1.8; font-size:0.93rem; }
+    .mantra-actions { display:flex; gap:10px; margin-top:18px; }
+    .mantra-actions .btn { flex:1; }
+    .mantra-list-item { display:flex; align-items:flex-start; gap:12px; background:var(--card-bg); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+    .mantra-list-text { flex:1; font-size:0.93rem; line-height:1.55; }
+    .mantra-list-actions { display:flex; gap:6px; flex-shrink:0; margin-top:2px; }
+    .btn-mantra-icon { background:none; border:1.5px solid var(--border); border-radius:8px; color:var(--muted); font-size:0.85rem; cursor:pointer; padding:4px 8px; line-height:1; }
+    .mantra-textarea {
+      width: 100%; min-height: 100px; padding: 12px 14px;
+      background: var(--card-bg); border: 1.5px solid var(--border);
+      border-radius: var(--radius); font-family: inherit; font-size: 1rem;
+      color: var(--text); resize: vertical; line-height: 1.5;
+    }
+    .mantra-textarea:focus { outline: none; border-color: var(--accent); }
+    .mantra-modal-label { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+    .mantra-modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .mantra-modal-actions .btn { flex: 1; }
+    .mantra-confirm-msg { font-size: 1rem; font-weight: 600; margin-bottom: 6px; text-align:center; }
+    .mantra-confirm-preview { font-size: 0.82rem; color: var(--muted); font-style: italic; margin: 4px 0 16px; text-align:center; }
   </style>
 </head>
 <body>
@@ -950,6 +973,27 @@
     <div id="log-list"></div>
   </div>
 
+  <!-- ── Mantras (session) ───────────────────── -->
+  <div id="screen-mantra" class="screen">
+    <div class="activity-header">
+      <button class="btn-back" data-back>←</button>
+      <span class="activity-title">Mantras</span>
+      <button class="btn-link" id="mantra-manage-btn" style="margin-left:auto">Manage</button>
+    </div>
+    <div id="mantra-session-body" style="display:flex;flex-direction:column;flex:1;"></div>
+    <div class="mantra-actions" id="mantra-session-actions"></div>
+  </div>
+
+  <!-- ── Mantras (manage) ────────────────────── -->
+  <div id="screen-mantra-manage" class="screen">
+    <div class="activity-header">
+      <button class="btn-back" data-back>←</button>
+      <span class="activity-title">Manage Mantras</span>
+      <button class="btn-link" id="mantra-add-new-btn" style="margin-left:auto">+ Add</button>
+    </div>
+    <div id="mantra-list-container"></div>
+  </div>
+
   <script>
     // ── Constants ──────────────────────────────────────────────────────────────
     const SB_URL = 'https://xsmnfcmtbpeaccnyinkr.supabase.co';
@@ -1159,6 +1203,8 @@
       if (id === 'stoic')         initStoic();
       if (id === 'log')           loadLog();
       if (id === 'prompt-library') loadPromptLibrary();
+      if (id === 'mantra')        mantraLoad();
+      if (id === 'mantra-manage') mantraRenderList();
     }
 
     // Gesture map: from home, swipe in any direction → destination; on dest, swipe back returns home.
@@ -1315,6 +1361,7 @@
     function showMoreSheet() {
       const items = [
         { nav: 'prompt',        label: 'Prompt',       sub: 'Get a Claude-generated reflection prompt' },
+        { nav: 'mantra',        label: 'Mantras',      sub: 'Cycle through your personal reminders' },
         { nav: 'log',           label: 'Journal',      sub: 'All your reflections and stoic entries' },
         { nav: 'challenges',    label: 'Challenges',   sub: 'Science-based behavioral experiments' },
         { nav: 'pattern',       label: 'Pattern View', sub: 'What Claude notices across your entries' },
@@ -2592,6 +2639,164 @@
         });
       } catch { el.innerHTML = '<p class="list-empty">Failed to load entries</p>'; }
     }
+
+    // ── Mantras ────────────────────────────────────────────────────────────────
+    let mantraList     = [];
+    let mantraShuffled = [];
+    let mantraIdx      = 0;
+
+    async function mantraLoad() {
+      const body = document.getElementById('mantra-session-body');
+      body.innerHTML = '<p style="color:var(--muted);text-align:center;padding:48px 0">Loading…</p>';
+      document.getElementById('mantra-session-actions').innerHTML = '';
+      if (!navigator.onLine) { showToast('Mantras require a connection'); goBack(); return; }
+      try {
+        mantraList = await sbFetch('mantras?order=created_at.asc&select=*') || [];
+      } catch(e) {
+        mantraList = [];
+        body.innerHTML = '<p style="color:var(--muted);text-align:center;padding:48px 0">Couldn\'t load mantras.<br><small>' + esc(e.message) + '</small></p>';
+        return;
+      }
+      mantraShuffle();
+    }
+
+    function mantraShuffle() {
+      mantraShuffled = [...mantraList].sort(() => Math.random() - 0.5);
+      mantraIdx = 0;
+      mantraRenderSession();
+    }
+
+    function mantraRenderSession() {
+      const body    = document.getElementById('mantra-session-body');
+      const actions = document.getElementById('mantra-session-actions');
+      if (!mantraShuffled.length) {
+        body.innerHTML = '<div class="mantra-empty">No mantras yet.<br>Add your first one below.</div>';
+        actions.innerHTML = '<button class="btn btn-primary" id="mantra-empty-add-btn">Add Mantra</button>';
+        document.getElementById('mantra-empty-add-btn').addEventListener('click', () => {
+          navigate('mantra-manage');
+          openMantraEdit(null);
+        });
+        return;
+      }
+      const m = mantraShuffled[mantraIdx];
+      body.innerHTML = '<div class="mantra-text-area"><div class="mantra-text">' + esc(m.text) + '</div></div>';
+      actions.innerHTML =
+        '<button class="btn btn-outline" id="mantra-reflect-btn">Reflect on it</button>' +
+        '<button class="btn btn-primary" id="mantra-next-btn">Next</button>';
+      document.getElementById('mantra-next-btn').addEventListener('click', () => {
+        mantraIdx++;
+        if (mantraIdx >= mantraShuffled.length) mantraShuffle();
+        else mantraRenderSession();
+      });
+      document.getElementById('mantra-reflect-btn').addEventListener('click', () => {
+        const ta = document.getElementById('reflect-textarea');
+        if (ta) ta.value = m.text + '\n\n';
+        navigate('reflect');
+        setTimeout(() => {
+          const t = document.getElementById('reflect-textarea');
+          if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+        }, 100);
+      });
+    }
+
+    function mantraRenderList() {
+      const container = document.getElementById('mantra-list-container');
+      if (!mantraList.length) {
+        container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:48px 0">No mantras yet</p>';
+        return;
+      }
+      container.innerHTML = mantraList.map(m =>
+        '<div class="mantra-list-item" data-mid="' + esc(m.id) + '">' +
+          '<div class="mantra-list-text">' + esc(m.text) + '</div>' +
+          '<div class="mantra-list-actions">' +
+            '<button class="btn-mantra-icon" data-edit="' + esc(m.id) + '" title="Edit">✎</button>' +
+            '<button class="btn-mantra-icon" data-delete="' + esc(m.id) + '" title="Delete">✕</button>' +
+          '</div>' +
+        '</div>'
+      ).join('');
+    }
+
+    document.getElementById('mantra-list-container').addEventListener('click', e => {
+      const eb = e.target.closest('[data-edit]');
+      if (eb) { openMantraEdit(eb.dataset.edit); return; }
+      const db = e.target.closest('[data-delete]');
+      if (db) { openMantraDelete(db.dataset.delete); }
+    });
+
+    function openMantraEdit(id) {
+      const m = id ? mantraList.find(x => x.id === id) : null;
+      const title = id ? 'Edit Mantra' : 'Add Mantra';
+      showModal(
+        '<div class="capture-modal">' +
+          '<div class="mantra-modal-label">' + title + '</div>' +
+          '<textarea id="mantra-edit-text" class="mantra-textarea" rows="4" placeholder="e.g. You are what you repeatedly do.">' + esc(m ? m.text : '') + '</textarea>' +
+          '<div class="mantra-modal-actions">' +
+            '<button class="btn btn-outline" id="mantra-edit-cancel">Cancel</button>' +
+            '<button class="btn btn-primary" id="mantra-edit-save">Save</button>' +
+          '</div>' +
+        '</div>',
+        () => {
+          const ta = document.getElementById('mantra-edit-text');
+          setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 60);
+          document.getElementById('mantra-edit-cancel').addEventListener('click', hideModal);
+          document.getElementById('mantra-edit-save').addEventListener('click', async () => {
+            const text = ta.value.trim();
+            if (!text) { showToast('Enter a mantra'); return; }
+            const btn = document.getElementById('mantra-edit-save');
+            btn.textContent = 'Saving…'; btn.disabled = true;
+            try {
+              if (id) {
+                await sbFetch('mantras?id=eq.' + id, {
+                  method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ text }),
+                });
+                const existing = mantraList.find(x => x.id === id);
+                if (existing) existing.text = text;
+              } else {
+                const created = await sbFetch('mantras', {
+                  method: 'POST', prefer: 'return=representation', body: JSON.stringify({ text }),
+                });
+                if (created && created.length) mantraList.push(created[0]);
+              }
+              hideModal();
+              mantraRenderList();
+              showToast('Saved');
+            } catch(e) { showToast('Error: ' + e.message); btn.textContent = 'Save'; btn.disabled = false; }
+          });
+        }
+      );
+    }
+
+    function openMantraDelete(id) {
+      const m = mantraList.find(x => x.id === id);
+      const preview = m ? (m.text.length > 70 ? m.text.slice(0, 70) + '…' : m.text) : '';
+      showModal(
+        '<div class="capture-modal">' +
+          '<div class="mantra-confirm-msg">Remove this mantra?</div>' +
+          '<div class="mantra-confirm-preview">' + esc(preview) + '</div>' +
+          '<div class="mantra-modal-actions">' +
+            '<button class="btn btn-outline" id="mantra-delete-cancel">Cancel</button>' +
+            '<button class="btn btn-primary" id="mantra-delete-yes">Remove</button>' +
+          '</div>' +
+        '</div>',
+        () => {
+          document.getElementById('mantra-delete-cancel').addEventListener('click', hideModal);
+          document.getElementById('mantra-delete-yes').addEventListener('click', async () => {
+            const btn = document.getElementById('mantra-delete-yes');
+            btn.textContent = 'Removing…'; btn.disabled = true;
+            try {
+              await sbFetch('mantras?id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+              mantraList = mantraList.filter(x => x.id !== id);
+              hideModal();
+              mantraRenderList();
+              showToast('Removed');
+            } catch(e) { showToast('Error: ' + e.message); btn.textContent = 'Remove'; btn.disabled = false; }
+          });
+        }
+      );
+    }
+
+    document.getElementById('mantra-manage-btn').addEventListener('click', () => navigate('mantra-manage'));
+    document.getElementById('mantra-add-new-btn').addEventListener('click', () => openMantraEdit(null));
 
     // ── Init ───────────────────────────────────────────────────────────────────
     async function init() {
