@@ -518,25 +518,6 @@
     .btn-flag-insight:active { color: var(--accent); border-color: var(--accent); }
 
     /* ── Stoic ──────────────────────────────────── */
-    .stoic-breathe-zone {
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; flex: 1; gap: 28px; min-height: 300px; padding: 20px 0;
-    }
-    .breathe-ring {
-      width: 160px; height: 160px; border-radius: 50%;
-      background: var(--accent); display: flex; align-items: center;
-      justify-content: center; cursor: pointer; color: var(--bg);
-      font-size: 2rem; font-weight: 700;
-      transition: transform 4s ease-in-out;
-      box-shadow: 0 0 0 14px rgba(168,152,128,0.12), 0 0 0 28px rgba(168,152,128,0.06);
-      user-select: none; -webkit-tap-highlight-color: transparent;
-    }
-    .breathe-ring.expand { transform: scale(1.45); }
-    .breathe-phase { font-size: 1.5rem; font-weight: 600; color: var(--text); }
-    .breathe-sub { font-size: 0.82rem; color: var(--muted); }
-    .breathe-controls { display: flex; gap: 10px; width: 100%; max-width: 280px; }
-    .breathe-controls .btn { flex: 1; padding: 12px; font-size: 0.9rem; }
-
     .stoic-practice-zone { display: flex; flex-direction: column; gap: 16px; }
     .practice-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .practice-type-btn {
@@ -842,21 +823,9 @@
       <div class="section-label">Choose your practice</div>
       <div class="practice-type-row">
         <button class="practice-type-btn featured" data-practice="meditation">Meditation</button>
-        <button class="practice-type-btn" data-practice="breath">Breathe</button>
-        <button class="practice-type-btn" data-practice="evening">Evening Review</button>
         <button class="practice-type-btn" data-practice="morning">Morning Intention</button>
-        <button class="practice-type-btn" data-practice="premeditatio">Premeditatio</button>
-      </div>
-
-      <div class="stoic-breathe-zone hidden" id="stoic-breathe-zone">
-        <div id="stoic-breathe-ring" class="breathe-ring">
-          <span id="stoic-breathe-count"></span>
-        </div>
-        <div id="stoic-breathe-phase" class="breathe-phase">Tap to begin</div>
-        <p class="breathe-sub">Inhale 4 · Exhale 6</p>
-        <div class="breathe-controls">
-          <button class="btn btn-outline" id="btn-stoic-breathe-toggle">Start</button>
-        </div>
+        <button class="practice-type-btn" data-practice="evening">Evening Review</button>
+        <button class="practice-type-btn" data-practice="premeditatio">Premeditatio Malorum</button>
       </div>
 
       <div class="stoic-meditate-zone hidden" id="stoic-meditate-zone">
@@ -1816,14 +1785,11 @@
     }
 
     // ── Stoic ──────────────────────────────────────────────────────────────────
-    let sBreathRunning = false, sBreathPhase = 0, sBreathTimer = null;
     let currentPractice = null;
 
     function initStoic() {
-      stopStoicBreathe();
       stopMeditation();
       resetMeditation();
-      document.getElementById('stoic-breathe-zone').classList.add('hidden');
       document.getElementById('stoic-meditate-zone').classList.add('hidden');
       document.querySelectorAll('.practice-type-btn').forEach(b => b.classList.remove('selected'));
       document.getElementById('stoic-prompts').innerHTML = '';
@@ -1832,67 +1798,20 @@
       currentPractice = null;
     }
 
-    document.getElementById('stoic-breathe-ring').addEventListener('click', toggleStoicBreathe);
-    document.getElementById('btn-stoic-breathe-toggle').addEventListener('click', toggleStoicBreathe);
-
-    function toggleStoicBreathe() { sBreathRunning ? stopStoicBreathe() : startStoicBreathe(); }
-
-    function startStoicBreathe() {
-      sBreathRunning = true; sBreathPhase = 0;
-      document.getElementById('btn-stoic-breathe-toggle').textContent = 'Pause';
-      runStoicPhase();
-    }
-    function stopStoicBreathe() {
-      sBreathRunning = false;
-      if (sBreathTimer) { clearInterval(sBreathTimer); sBreathTimer = null; }
-      const ring = document.getElementById('stoic-breathe-ring');
-      if (ring) { ring.style.transition = 'transform 0.5s ease'; ring.classList.remove('expand'); }
-      const phase = document.getElementById('stoic-breathe-phase');
-      if (phase) phase.textContent = 'Tap to begin';
-      const count = document.getElementById('stoic-breathe-count');
-      if (count) count.textContent = '';
-      const tog = document.getElementById('btn-stoic-breathe-toggle');
-      if (tog) tog.textContent = 'Start';
-    }
-    function runStoicPhase() {
-      if (!sBreathRunning) return;
-      const PHASES = ['Inhale','Exhale'];
-      const DURS   = [4,6];
-      const phase  = PHASES[sBreathPhase % 2];
-      const dur    = DURS[sBreathPhase % 2];
-      const ring   = document.getElementById('stoic-breathe-ring');
-      document.getElementById('stoic-breathe-phase').textContent = phase;
-      if (phase === 'Inhale') { ring.style.transition = `transform ${dur}s ease-in-out`; ring.classList.add('expand'); }
-      else if (phase === 'Exhale') { ring.style.transition = `transform ${dur}s ease-in-out`; ring.classList.remove('expand'); }
-      let rem = dur;
-      document.getElementById('stoic-breathe-count').textContent = rem;
-      sBreathTimer = setInterval(() => {
-        rem--;
-        document.getElementById('stoic-breathe-count').textContent = rem > 0 ? rem : '';
-        if (rem <= 0) { clearInterval(sBreathTimer); sBreathTimer = null; sBreathPhase++; runStoicPhase(); }
-      }, 1000);
-    }
-
     document.querySelectorAll('.practice-type-btn').forEach(btn =>
       btn.addEventListener('click', () => {
         document.querySelectorAll('.practice-type-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         currentPractice = btn.dataset.practice;
-        const isBreath     = currentPractice === 'breath';
         const isMeditation = currentPractice === 'meditation';
-        const isPrompted   = !isBreath && !isMeditation;
-        document.getElementById('stoic-breathe-zone').classList.toggle('hidden', !isBreath);
+        const isPrompted   = !isMeditation;
         document.getElementById('stoic-meditate-zone').classList.toggle('hidden', !isMeditation);
         document.getElementById('stoic-prompts').classList.toggle('hidden', !isPrompted);
         document.getElementById('btn-save-stoic').classList.toggle('hidden', !isPrompted);
         if (isPrompted) {
-          stopStoicBreathe(); stopMeditation();
-          renderStoicPrompts(currentPractice);
-        } else if (isBreath) {
           stopMeditation();
-          document.getElementById('stoic-prompts').innerHTML = '';
-        } else if (isMeditation) {
-          stopStoicBreathe();
+          renderStoicPrompts(currentPractice);
+        } else {
           resetMeditation();
           document.getElementById('stoic-prompts').innerHTML = '';
         }

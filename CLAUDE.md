@@ -84,6 +84,13 @@ create table active_challenges (
   created_at timestamptz not null default now()
 );
 
+create table challenge_logs (
+  id uuid primary key default gen_random_uuid(),
+  active_challenge_id uuid not null references active_challenges(id) on delete cascade,
+  date date not null default current_date,
+  unique(active_challenge_id, date)
+);
+
 -- RLS: enable and allow anon full access for all tables
 alter table reflections enable row level security;
 alter table quick_captures enable row level security;
@@ -91,6 +98,7 @@ alter table insights enable row level security;
 alter table habits enable row level security;
 alter table habit_logs enable row level security;
 alter table active_challenges enable row level security;
+alter table challenge_logs enable row level security;
 
 create policy "anon all" on reflections for all using (true) with check (true);
 create policy "anon all" on quick_captures for all using (true) with check (true);
@@ -98,6 +106,7 @@ create policy "anon all" on insights for all using (true) with check (true);
 create policy "anon all" on habits for all using (true) with check (true);
 create policy "anon all" on habit_logs for all using (true) with check (true);
 create policy "anon all" on active_challenges for all using (true) with check (true);
+create policy "anon all" on challenge_logs for all using (true) with check (true);
 ```
 
 Cross-app: insights are optionally pushed to Break's `mantras` table (same Supabase project, same anon key).
