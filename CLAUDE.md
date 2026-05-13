@@ -91,6 +91,14 @@ create table challenge_logs (
   unique(active_challenge_id, date)
 );
 
+create table saved_prompts (
+  id uuid primary key default gen_random_uuid(),
+  prompt_text text not null,
+  practice_type text not null check (practice_type in ('morning','evening','premeditatio')),
+  pinned boolean default false,
+  created_at timestamptz not null default now()
+);
+
 -- RLS: enable and allow anon full access for all tables
 alter table reflections enable row level security;
 alter table quick_captures enable row level security;
@@ -99,6 +107,7 @@ alter table habits enable row level security;
 alter table habit_logs enable row level security;
 alter table active_challenges enable row level security;
 alter table challenge_logs enable row level security;
+alter table saved_prompts enable row level security;
 
 create policy "anon all" on reflections for all using (true) with check (true);
 create policy "anon all" on quick_captures for all using (true) with check (true);
@@ -107,6 +116,7 @@ create policy "anon all" on habits for all using (true) with check (true);
 create policy "anon all" on habit_logs for all using (true) with check (true);
 create policy "anon all" on active_challenges for all using (true) with check (true);
 create policy "anon all" on challenge_logs for all using (true) with check (true);
+create policy "anon all" on saved_prompts for all using (true) with check (true);
 ```
 
 Cross-app: insights are optionally pushed to Break's `mantras` table (same Supabase project, same anon key).
@@ -125,6 +135,7 @@ Cross-app: insights are optionally pushed to Break's `mantras` table (same Supab
 | `pattern` | Claude surfaces observations across recent entries |
 | `captures` | Review/promote/dismiss quick captures |
 | `habits-manage` | Add/remove habits |
+| `prompt-library` | Browse / pin / delete saved Stoic prompts |
 
 ---
 
@@ -153,7 +164,9 @@ Runs once per day (tracked in `localStorage['still_resurface_date']`). Fetches c
 15 challenges are hardcoded in the `CHALLENGES` constant (not fetched from Supabase). Only `active_challenges` (user opt-ins) live in Supabase.
 
 ## Stoic practices
-3 types in `STOIC_PRACTICES` constant: `evening`, `morning`, `premeditatio`. Each has 3 guided prompts. Saved as a reflection with `tags: ['stoic']` and `prompt_used` = practice label.
+3 types in `STOIC_PRACTICES` constant: `evening`, `morning`, `premeditatio`. Each has 3 default prompts. Saved as a reflection with `tags: ['stoic']` and `prompt_used` = practice label.
+
+Per-prompt actions (regenerate / save / pin) are triggered by a 500ms long-press on the prompt header (same pattern as the canvas center long-press). A `•••` glyph hints at it. Pinned prompts (from `saved_prompts` table) fill the visible 3 slots first in order of creation; remaining slots are populated from the practice's default pool. The Prompt Library screen (`prompt-library`) lets you browse, unpin, and delete saved prompts.
 
 ---
 

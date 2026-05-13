@@ -552,7 +552,19 @@
 
     .stoic-prompts { display: flex; flex-direction: column; gap: 14px; }
     .stoic-prompt-item { display: flex; flex-direction: column; gap: 6px; }
-    .stoic-prompt-q { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+    .stoic-prompt-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; cursor: pointer; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .stoic-prompt-q { font-size: 0.88rem; font-weight: 600; color: var(--text); flex: 1; }
+    .stoic-prompt-hint {
+      font-size: 0.85rem; color: var(--muted); opacity: 0.5;
+      letter-spacing: 1px; line-height: 1; padding-top: 2px; flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .stoic-prompt-header:active .stoic-prompt-hint { opacity: 1; }
+    .stoic-prompt-item[data-pinned="1"] .stoic-prompt-hint::before { content: '📌 '; }
     .stoic-prompt-a {
       border: 1.5px solid var(--border); border-radius: var(--radius);
       padding: 12px 14px; font-size: 0.9rem; color: var(--text);
@@ -560,6 +572,30 @@
       resize: none; outline: none; line-height: 1.55; min-height: 72px; width: 100%;
     }
     .stoic-prompt-a:focus { border-color: var(--accent); }
+
+    .action-sheet { display: flex; flex-direction: column; }
+    .action-sheet-row {
+      padding: 16px 18px; font-size: 0.96rem; color: var(--text);
+      border-bottom: 1px solid var(--border); cursor: pointer;
+    }
+    .action-sheet-row:last-child { border-bottom: none; }
+    .action-sheet-row:active { background: var(--card-bg); }
+
+    .lib-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px; background: var(--card-bg);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 10px;
+    }
+    .lib-row-body { flex: 1; min-width: 0; }
+    .lib-row-text { font-size: 0.92rem; line-height: 1.5; color: var(--text); }
+    .lib-row-meta { font-size: 0.72rem; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+    .lib-row-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .lib-pin {
+      background: none; border: 1.5px solid var(--border); border-radius: 8px;
+      width: 36px; height: 36px; font-size: 1rem; cursor: pointer; font-family: var(--font);
+    }
+    .lib-pin.on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 
     /* ── Insights ───────────────────────────────── */
     .list-empty { color: var(--muted); font-size: 0.9rem; font-style: italic; text-align: center; padding: 40px 0; }
@@ -890,6 +926,21 @@
     </div>
   </div>
 
+  <!-- ── Prompt Library ──────────────────────── -->
+  <div id="screen-prompt-library" class="screen">
+    <div class="activity-header">
+      <button class="btn-back" data-back>←</button>
+      <span class="activity-title">Prompt Library</span>
+    </div>
+    <div class="thoughts-filter">
+      <button class="thoughts-filter-btn selected" data-pf="all">All</button>
+      <button class="thoughts-filter-btn" data-pf="morning">Morning</button>
+      <button class="thoughts-filter-btn" data-pf="evening">Evening</button>
+      <button class="thoughts-filter-btn" data-pf="premeditatio">Premeditatio</button>
+    </div>
+    <div id="prompt-library-list"></div>
+  </div>
+
   <!-- ── Journal Log ─────────────────────────── -->
   <div id="screen-log" class="screen">
     <div class="activity-header">
@@ -917,9 +968,9 @@
       morning: {
         label: 'Morning Intention',
         prompts: [
-          'What is the most important thing I can do today?',
-          'What obstacles might arise, and how will I respond?',
-          'How do I want to show up today?',
+          'What kind of person do I want to have been when I look back on today? Name the trait.',
+          'If I only get one thing done today, which act would make the day a win — and what is most likely to pull me away from it?',
+          'Which virtue does today most need from me — wisdom, courage, justice, or temperance? Where will I be tested on it?',
         ],
       },
       premeditatio: {
@@ -1107,6 +1158,7 @@
       if (id === 'habits-manage') loadHabitsManage();
       if (id === 'stoic')         initStoic();
       if (id === 'log')           loadLog();
+      if (id === 'prompt-library') loadPromptLibrary();
     }
 
     // Gesture map: from home, swipe in any direction → destination; on dest, swipe back returns home.
@@ -1267,6 +1319,7 @@
         { nav: 'challenges',    label: 'Challenges',   sub: 'Science-based behavioral experiments' },
         { nav: 'pattern',       label: 'Pattern View', sub: 'What Claude notices across your entries' },
         { nav: 'habits-manage', label: 'Habits',       sub: 'Add or remove daily habits' },
+        { nav: 'prompt-library', label: 'Prompt Library', sub: 'Manage your saved Stoic prompts' },
         { action: 'settings',   label: 'Settings',     sub: 'API keys' },
       ];
       showModal(
@@ -1932,26 +1985,163 @@
     });
     document.getElementById('btn-meditate-skip').addEventListener('click', skipMeditationStep);
 
-    function renderStoicPrompts(type) {
+    async function renderStoicPrompts(type) {
       const p = STOIC_PRACTICES[type];
       if (!p) return;
+      let pinned = [];
+      try {
+        pinned = await sbFetch(
+          'saved_prompts?practice_type=eq.' + type + '&pinned=eq.true&order=created_at.asc&limit=3'
+        ) || [];
+      } catch { pinned = []; }
+
+      const slots = [];
+      pinned.forEach(row => slots.push({ text: row.prompt_text, savedId: row.id, pinned: true }));
+      const defaults = p.prompts.slice();
+      while (slots.length < 3 && defaults.length) {
+        slots.push({ text: defaults.shift(), savedId: null, pinned: false });
+      }
+
       const el = document.getElementById('stoic-prompts');
-      el.innerHTML = p.prompts.map((q, i) =>
-        '<div class="stoic-prompt-item">' +
-          '<div class="stoic-prompt-q">' + esc(q) + '</div>' +
+      el.innerHTML = slots.map((s, i) =>
+        '<div class="stoic-prompt-item" data-idx="' + i + '" data-saved-id="' + esc(s.savedId || '') + '" data-pinned="' + (s.pinned ? 1 : 0) + '">' +
+          '<div class="stoic-prompt-header">' +
+            '<div class="stoic-prompt-q">' + esc(s.text) + '</div>' +
+            '<span class="stoic-prompt-hint" aria-hidden="true">•••</span>' +
+          '</div>' +
           '<textarea class="stoic-prompt-a" data-idx="' + i + '" placeholder="Your response..." rows="3"></textarea>' +
         '</div>'
       ).join('');
+      attachPromptLongPress(type);
       el.classList.remove('hidden');
       document.getElementById('btn-save-stoic').classList.remove('hidden');
+    }
+
+    function attachPromptLongPress(type) {
+      document.querySelectorAll('#stoic-prompts .stoic-prompt-header').forEach(header => {
+        let timer = null, start = null;
+        header.addEventListener('pointerdown', e => {
+          start = { x: e.clientX, y: e.clientY };
+          timer = setTimeout(() => {
+            start = null;
+            const item = header.closest('.stoic-prompt-item');
+            openPromptActionSheet(type, parseInt(item.dataset.idx, 10));
+          }, 500);
+        });
+        header.addEventListener('pointermove', e => {
+          if (!start) return;
+          const dx = e.clientX - start.x, dy = e.clientY - start.y;
+          if (dx * dx + dy * dy > 144) { clearTimeout(timer); start = null; }
+        });
+        const cancel = () => { clearTimeout(timer); start = null; };
+        header.addEventListener('pointerup', cancel);
+        header.addEventListener('pointerleave', cancel);
+        header.addEventListener('pointercancel', cancel);
+      });
+    }
+
+    function openPromptActionSheet(type, idx) {
+      const item = document.querySelector('#stoic-prompts .stoic-prompt-item[data-idx="' + idx + '"]');
+      if (!item) return;
+      const savedId = item.dataset.savedId || null;
+      const pinned = item.dataset.pinned === '1';
+      const html =
+        '<div class="action-sheet">' +
+          '<div class="action-sheet-row" data-action="regenerate">↻ Regenerate</div>' +
+          '<div class="action-sheet-row" data-action="save">' + (savedId ? '☆ Saved ✓' : '☆ Save to library') + '</div>' +
+          '<div class="action-sheet-row" data-action="pin">' + (pinned ? '📌 Unpin' : '📌 Pin') + '</div>' +
+        '</div>';
+      showModal(html, () => {
+        document.querySelectorAll('.action-sheet-row').forEach(row =>
+          row.addEventListener('click', () => handlePromptAction(type, idx, row.dataset.action))
+        );
+      });
+    }
+
+    async function handlePromptAction(type, idx, action) {
+      const item = document.querySelector('#stoic-prompts .stoic-prompt-item[data-idx="' + idx + '"]');
+      if (!item) return hideModal();
+      const text = item.querySelector('.stoic-prompt-q').textContent;
+      const savedId = item.dataset.savedId || null;
+      const pinned = item.dataset.pinned === '1';
+      hideModal();
+
+      if (action === 'regenerate') {
+        const q = item.querySelector('.stoic-prompt-q');
+        const original = q.textContent;
+        q.textContent = '…';
+        try {
+          const others = Array.from(document.querySelectorAll('#stoic-prompts .stoic-prompt-q'))
+            .map(n => n.textContent).filter(t => t && t !== '…' && t !== original);
+          const flavor = STOIC_PRACTICES[type].label;
+          const userPrompt =
+            'Write a "' + flavor + '" reflection prompt in the Stoic tradition. ' +
+            'Generate a DIFFERENT angle from what is already visible ' +
+            '(draw from: Marcus Aurelius\'s awareness of difficulty, single-focus needle-movers, ' +
+            'cardinal virtues like wisdom/courage/justice/temperance, presence and gratitude, ' +
+            'or Stoic exercises like premeditatio malorum and view-from-above). ' +
+            'Visible prompts to AVOID repeating:\n' + others.map(o => '- ' + o).join('\n') +
+            '\n\nReturn JSON: { "prompt": "..." }';
+          const res = await callClaude(userPrompt);
+          q.textContent = res.prompt;
+          item.dataset.savedId = '';
+          item.dataset.pinned = '0';
+        } catch (e) {
+          q.textContent = original;
+          showToast('Regenerate failed');
+        }
+      }
+
+      else if (action === 'save') {
+        if (savedId) return showToast('Already saved');
+        try {
+          const rows = await sbFetch('saved_prompts', {
+            method: 'POST', prefer: 'return=representation',
+            body: JSON.stringify({ prompt_text: text, practice_type: type, pinned: false }),
+          });
+          if (rows && rows[0]) item.dataset.savedId = rows[0].id;
+          showToast('Saved to library');
+        } catch { showToast('Save failed'); }
+      }
+
+      else if (action === 'pin') {
+        try {
+          if (pinned && savedId) {
+            await sbFetch('saved_prompts?id=eq.' + savedId, {
+              method: 'PATCH', prefer: 'return=minimal',
+              body: JSON.stringify({ pinned: false }),
+            });
+            item.dataset.pinned = '0';
+            showToast('Unpinned');
+          } else if (savedId) {
+            await sbFetch('saved_prompts?id=eq.' + savedId, {
+              method: 'PATCH', prefer: 'return=minimal',
+              body: JSON.stringify({ pinned: true }),
+            });
+            item.dataset.pinned = '1';
+            showToast('Pinned');
+          } else {
+            const rows = await sbFetch('saved_prompts', {
+              method: 'POST', prefer: 'return=representation',
+              body: JSON.stringify({ prompt_text: text, practice_type: type, pinned: true }),
+            });
+            if (rows && rows[0]) {
+              item.dataset.savedId = rows[0].id;
+              item.dataset.pinned = '1';
+            }
+            showToast('Pinned');
+          }
+        } catch { showToast('Pin failed'); }
+      }
     }
 
     document.getElementById('btn-save-stoic').addEventListener('click', async () => {
       if (!currentPractice) return;
       const p = STOIC_PRACTICES[currentPractice];
+      const questions = Array.from(document.querySelectorAll('#stoic-prompts .stoic-prompt-q')).map(n => n.textContent);
       const answers = Array.from(document.querySelectorAll('.stoic-prompt-a')).map(t => t.value.trim());
       if (answers.every(a => !a)) return showToast('Write something first');
-      const text = p.prompts.map((q, i) => q + '\n' + (answers[i] || '(no response)')).join('\n\n');
+      const text = questions.map((q, i) => q + '\n' + (answers[i] || '(no response)')).join('\n\n');
       const btn = document.getElementById('btn-save-stoic');
       btn.disabled = true; btn.textContent = 'Saving...';
       try {
@@ -2055,12 +2245,70 @@
       list.querySelectorAll('[data-del-ins]').forEach(b => b.addEventListener('click', () => deleteInsight(b.dataset.delIns)));
     }
 
-    document.querySelectorAll('.thoughts-filter-btn').forEach(btn =>
+    document.querySelectorAll('#screen-thoughts .thoughts-filter-btn').forEach(btn =>
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.thoughts-filter-btn').forEach(b => b.classList.remove('selected'));
+        document.querySelectorAll('#screen-thoughts .thoughts-filter-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         thoughtsFilter = btn.dataset.filter;
         renderThoughts();
+      })
+    );
+
+    // ── Prompt Library ─────────────────────────────────────────────────────────
+    let libFilter = 'all';
+
+    async function loadPromptLibrary() {
+      const el = document.getElementById('prompt-library-list');
+      el.innerHTML = '<p class="list-empty" style="padding:12px 0">Loading...</p>';
+      try {
+        const rows = await sbFetch('saved_prompts?order=pinned.desc,created_at.desc');
+        const filtered = (rows || []).filter(r => libFilter === 'all' || r.practice_type === libFilter);
+        if (!filtered.length) { el.innerHTML = '<p class="list-empty" style="padding:12px 0">No saved prompts yet</p>'; return; }
+        const TYPE_LABEL = { morning: 'Morning Intention', evening: 'Evening Review', premeditatio: 'Premeditatio Malorum' };
+        el.innerHTML = filtered.map(r =>
+          '<div class="lib-row" data-id="' + esc(r.id) + '">' +
+            '<div class="lib-row-body">' +
+              '<div class="lib-row-text">' + esc(r.prompt_text) + '</div>' +
+              '<div class="lib-row-meta">' + esc(TYPE_LABEL[r.practice_type] || r.practice_type) + '</div>' +
+            '</div>' +
+            '<div class="lib-row-actions">' +
+              '<button class="lib-pin' + (r.pinned ? ' on' : '') + '" data-pin="' + esc(r.id) + '" data-state="' + (r.pinned ? '1' : '0') + '">📌</button>' +
+              '<button class="btn-del" data-del-prompt="' + esc(r.id) + '">×</button>' +
+            '</div>' +
+          '</div>'
+        ).join('');
+        el.querySelectorAll('[data-pin]').forEach(b =>
+          b.addEventListener('click', () => togglePinLibrary(b.dataset.pin, b.dataset.state === '0'))
+        );
+        el.querySelectorAll('[data-del-prompt]').forEach(b =>
+          b.addEventListener('click', () => deleteSavedPrompt(b.dataset.delPrompt))
+        );
+      } catch { el.innerHTML = '<p class="list-empty">Failed to load</p>'; }
+    }
+
+    async function togglePinLibrary(id, nextPinned) {
+      try {
+        await sbFetch('saved_prompts?id=eq.' + id, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ pinned: nextPinned }),
+        });
+        loadPromptLibrary();
+      } catch { showToast('Failed'); }
+    }
+
+    async function deleteSavedPrompt(id) {
+      try {
+        await sbFetch('saved_prompts?id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+        loadPromptLibrary();
+      } catch { showToast('Delete failed'); }
+    }
+
+    document.querySelectorAll('#screen-prompt-library .thoughts-filter-btn').forEach(b =>
+      b.addEventListener('click', () => {
+        document.querySelectorAll('#screen-prompt-library .thoughts-filter-btn').forEach(x => x.classList.remove('selected'));
+        b.classList.add('selected');
+        libFilter = b.dataset.pf;
+        loadPromptLibrary();
       })
     );
 
