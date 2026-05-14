@@ -136,7 +136,7 @@ Sleep / readiness / activity (and HRV / resting HR contributors) are pulled from
 ## Screens
 | Screen ID | Purpose |
 |---|---|
-| `home` | Quick capture, habit checklist, active challenge, nav grid |
+| `home` | Gesture canvas (swipe up/down/left/right → Reflect/Habits/Stoic/Thoughts). Center shows brand + date + active-challenge tag + a rotating content slot. |
 | `apikey` | API key entry (stored in localStorage) |
 | `reflect` | Journal entry with Claude prompts, mood, tags, insight flagging |
 | `stoic` | Box breathing ritual + 3 Stoic practice types |
@@ -169,6 +169,18 @@ Direct Claude browser fetch. Throws on error. Parses JSON from response.
 Runs once per day (tracked in `localStorage['still_resurface_date']`). Fetches captures older than 5 days that are not dismissed/promoted, picks one randomly, shows it on home.
 
 ---
+
+## Home canvas content slot
+The center text under the brand/date rotates through one of three sources, in priority order:
+
+1. **Morning intention check-in** — if a `reflections` row exists for today with `tags @> {stoic}` and `prompt_used = 'Morning Intention'`, the slot shows a Claude-generated check-in line referencing the named virtue/intention from that entry (e.g. "You said you wanted to practice temperance today. How is that going?"). Tapping navigates to Reflect with the line set as the prompt banner. The line is generated once per day and cached in `localStorage['still_morning_blurb_{YYYY-MM-DD}']` as `{ intention, line }`. Claude is called via `callClaude` and returns JSON.
+2. **Mantra** — random pick from `mantras` table (Break's table, same Supabase project), avoiding immediate repeats.
+3. **Quote of the day** — deterministic pick from the hardcoded `QUOTES` array by day-of-year.
+
+The habits screen still has its own `loadCheckin` Morning Check-in card after noon — that's the actionable card path; the home blurb is the passive nudge. Both wire `reflectPromptUsed` the same way.
+
+## Manifest color discipline
+iOS PWA standalone with `viewport-fit=cover` paints the safe-area-inset-bottom strip (home indicator) from `manifest.json` `background_color`, *not* from the page's CSS — `position: fixed; inset: 0` only fills the layout viewport, which excludes that strip. Keep `manifest.json` `background_color` and `theme_color` in sync with the light-mode `--bg` (`#F5F2EE`), otherwise the strip shows as a dark band beneath the canvas. The HTML `<meta name="theme-color">` should match.
 
 ## Challenge library
 15 challenges are hardcoded in the `CHALLENGES` constant (not fetched from Supabase). Only `active_challenges` (user opt-ins) live in Supabase.

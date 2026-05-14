@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Still" />
@@ -15,6 +15,14 @@
   <style>
     /* ── Reset & Tokens ─────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Lock horizontal motion + pinch zoom at the document level. Inner
+       elements with their own gestures still work because they declare
+       their own touch-action. */
+    html, body {
+      overflow-x: hidden;
+      overscroll-behavior-x: none;
+      touch-action: pan-y;
+    }
     :root {
       --bg:      #F5F2EE;
       --text:    #1C1C1C;
@@ -181,6 +189,35 @@
       font-style: normal;
       opacity: 0.75;
       letter-spacing: 0.4px;
+    }
+    .canvas-intention {
+      margin-top: 28px;
+      max-width: 340px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 16px;
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+    .canvas-intention:active { transform: scale(0.98); opacity: 0.85; }
+    .canvas-intention-label {
+      font-size: 0.66rem; font-weight: 600; color: var(--accent);
+      text-transform: uppercase; letter-spacing: 1.2px;
+    }
+    .canvas-intention-line {
+      font-size: 0.92rem; color: var(--text); line-height: 1.5;
+      font-style: italic; opacity: 0.92;
+    }
+    .canvas-intention-cta {
+      font-size: 0.72rem; color: var(--muted);
+      letter-spacing: 0.4px; opacity: 0.8;
     }
 
     /* ── Buttons ────────────────────────────────── */
@@ -760,6 +797,7 @@
         <div class="canvas-date" id="canvas-date"></div>
         <div class="canvas-challenge hidden" id="canvas-challenge"></div>
         <div class="canvas-quote" id="canvas-quote"></div>
+        <div class="canvas-intention hidden" id="canvas-intention"></div>
       </button>
     </div>
   </div>
@@ -1193,7 +1231,7 @@
       slideTo(prev || 'home', dir);
     }
     function onEnter(id) {
-      if (id === 'home')          { renderCanvasDate(); refreshCanvasMantra(); }
+      if (id === 'home')          { renderCanvasDate(); refreshCanvasContent(); }
       if (id === 'habits')        { loadHabitsHome(); loadActiveChallengeHome(); loadResurface(); loadCheckin(); }
       if (id === 'reflect')       renderReflectPromptBanner();
       if (id === 'prompt')        resetPromptScreen();
@@ -2716,6 +2754,77 @@
       const m = pool[Math.floor(Math.random() * pool.length)];
       lastCanvasMantraId = m.id;
       el.innerHTML = '<div class="canvas-quote-text">' + esc(m.text) + '</div>';
+    }
+
+    async function refreshCanvasContent() {
+      const intentionEl = document.getElementById('canvas-intention');
+      const quoteEl     = document.getElementById('canvas-quote');
+      const shown = await refreshCanvasIntention();
+      if (shown) {
+        quoteEl.innerHTML = '';
+      } else {
+        intentionEl.classList.add('hidden');
+        intentionEl.innerHTML = '';
+        intentionEl.onclick = null;
+        refreshCanvasMantra();
+      }
+    }
+
+    async function refreshCanvasIntention() {
+      const el = document.getElementById('canvas-intention');
+      if (!el) return false;
+      const cacheKey = 'still_morning_blurb_' + today();
+
+      let row;
+      try {
+        const rows = await sbFetch(
+          'reflections?date=eq.' + today() +
+          '&tags=cs.%7Bstoic%7D&prompt_used=eq.Morning%20Intention' +
+          '&order=created_at.desc&limit=1'
+        );
+        row = rows?.[0];
+      } catch { return false; }
+      if (!row) { localStorage.removeItem(cacheKey); return false; }
+
+      let blurb = null;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) { try { blurb = JSON.parse(cached); } catch { blurb = null; } }
+
+      if (!blurb || blurb.reflection_id !== row.id) {
+        blurb = await generateIntentionBlurb(row);
+        if (!blurb) return false;
+        localStorage.setItem(cacheKey, JSON.stringify(blurb));
+      }
+
+      el.innerHTML =
+        '<div class="canvas-intention-label">Morning Intention</div>' +
+        '<div class="canvas-intention-line">' + esc(blurb.line) + '</div>' +
+        '<div class="canvas-intention-cta">Tap to reflect →</div>';
+      el.classList.remove('hidden');
+      el.onclick = (e) => {
+        e.stopPropagation();
+        reflectPromptUsed = blurb.line;
+        navigate('reflect');
+      };
+      return true;
+    }
+
+    async function generateIntentionBlurb(row) {
+      if (!getApiKey()) {
+        return { reflection_id: row.id, intention: '', line: 'You set a morning intention today. How is it going?' };
+      }
+      try {
+        const result = await callClaude(
+          'A user wrote their Stoic morning intention earlier today. Return JSON: ' +
+          '{ "intention": "<one short phrase naming the trait/virtue/goal they set, lowercase>", ' +
+          '"line": "<one short second-person question that references their specific intention and asks how it\'s going so far, e.g. \\"You said you wanted to practice temperance today. How is that going?\\" — keep it under 22 words, warm and direct, no preamble>" }. ' +
+          'Their entry (Q/A pairs):\n\n' + row.text.slice(0, 1500)
+        );
+        if (!result || !result.line) return null;
+        return { reflection_id: row.id, intention: result.intention || '', line: result.line };
+      } catch {
+        return { reflection_id: row.id, intention: '', line: 'You set a morning intention today. How is it going?' };
+      }
     }
 
     function mantraRenderList() {
