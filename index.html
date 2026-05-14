@@ -1193,7 +1193,7 @@
       slideTo(prev || 'home', dir);
     }
     function onEnter(id) {
-      if (id === 'home')          renderCanvasDate();
+      if (id === 'home')          { renderCanvasDate(); refreshCanvasMantra(); }
       if (id === 'habits')        { loadHabitsHome(); loadActiveChallengeHome(); loadResurface(); loadCheckin(); }
       if (id === 'reflect')       renderReflectPromptBanner();
       if (id === 'prompt')        resetPromptScreen();
@@ -2645,6 +2645,9 @@
     let mantraShuffled = [];
     let mantraIdx      = 0;
 
+    // Home-canvas mantra: re-pick on every home entry (no auto-cycle)
+    let lastCanvasMantraId = null;
+
     async function mantraLoad() {
       const body = document.getElementById('mantra-session-body');
       body.innerHTML = '<p style="color:var(--muted);text-align:center;padding:48px 0">Loading…</p>';
@@ -2697,6 +2700,22 @@
           if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
         }, 100);
       });
+    }
+
+    async function refreshCanvasMantra() {
+      const el = document.getElementById('canvas-quote');
+      if (!el) return;
+      if (!mantraList.length) {
+        try { mantraList = await sbFetch('mantras?order=created_at.asc&select=*') || []; }
+        catch { mantraList = []; }
+      }
+      if (!mantraList.length) { el.innerHTML = ''; lastCanvasMantraId = null; return; }
+      const pool = mantraList.length > 1
+        ? mantraList.filter(m => m.id !== lastCanvasMantraId)
+        : mantraList;
+      const m = pool[Math.floor(Math.random() * pool.length)];
+      lastCanvasMantraId = m.id;
+      el.innerHTML = '<div class="canvas-quote-text">' + esc(m.text) + '</div>';
     }
 
     function mantraRenderList() {
@@ -2802,6 +2821,7 @@
     async function init() {
       showScreen('home');
       renderCanvasDate();
+      refreshCanvasMantra();
       await Promise.all([
         loadHabitsHome(),
         loadActiveChallengeHome(),
